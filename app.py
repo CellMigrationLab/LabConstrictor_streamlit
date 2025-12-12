@@ -87,8 +87,18 @@ def has_changes_to_commit(path, cwd):
         st.write(f"⚠️ Could not check changes: {e}")
         return False
 
-def run_git_command(args, cwd):
-    result = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
+def run_git_command(args, cwd, github_token: str | None = None):
+    git_cmd = ["git"]
+    if github_token:
+        sanitized_token = github_token.strip()
+        if sanitized_token:
+            git_cmd.extend(
+                [
+                    "-c",
+                    f"http.extraHeader=Authorization: Bearer {sanitized_token}",
+                ]
+            )
+    result = subprocess.run(git_cmd + args, cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"❌ Git error running 'git {' '.join(args)}':\n{result.stderr.strip()}")
     return result.stdout.strip()
@@ -106,7 +116,7 @@ def push_config_changes_to_new_branch(
         run_git_command(["config", "user.name", username], cwd=repo_path)
 
         run_git_command(["checkout", "main"], cwd=repo_path)
-        run_git_command(["pull", "origin", "main"], cwd=repo_path)
+        run_git_command(["pull", "origin", "main"], cwd=repo_path, github_token=github_token)
 
         if not has_changes_to_commit(folder, cwd=repo_path):
             st.write(f"ℹ️ No changes detected in `{folder}`. Nothing to push.")
@@ -117,7 +127,11 @@ def push_config_changes_to_new_branch(
         run_git_command(["checkout", "-b", new_branch], cwd=repo_path)
         run_git_command(["add", folder], cwd=repo_path)
         run_git_command(["commit", "-m", commit_message], cwd=repo_path)
-        run_git_command(["push", "--set-upstream", "origin", new_branch], cwd=repo_path)
+        run_git_command(
+            ["push", "--set-upstream", "origin", new_branch],
+            cwd=repo_path,
+            github_token=github_token,
+        )
 
         st.write(f"✅ Successfully pushed to branch `{new_branch}`.")
         return new_branch
@@ -203,7 +217,18 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str,
 
         st.write(f"🌀 Cloning Git repo to {st.session_state['repo_path']}...")
 
-        result = subprocess.run(["git", "clone", repo_url, st.session_state["repo_path"]], capture_output=True, text=True)
+        clone_cmd = ["git"]
+        token_for_clone = (personal_access_token or "").strip()
+        if token_for_clone:
+            clone_cmd.extend(
+                [
+                    "-c",
+                    f"http.extraHeader=Authorization: Bearer {token_for_clone}",
+                ]
+            )
+        clone_cmd.extend(["clone", repo_url, st.session_state["repo_path"]])
+
+        result = subprocess.run(clone_cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"❌ Git clone failed: {result.stderr.strip()}")
         
