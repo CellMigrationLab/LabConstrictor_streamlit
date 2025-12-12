@@ -333,6 +333,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         st.write(f"✅ Git repo cloned at {st.session_state['repo_path']}")
 
     st.write("🛠 Initializing project files...")
+
     # First move the uploaded files to the repo path under the app/logo
     logo_path = st.session_state["repo_path"] / "app" / "logo"
     logo_path.mkdir(parents=True, exist_ok=True)
@@ -348,6 +349,8 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     welcome_image = input_dict["welcome_uploaded"].name if input_dict["welcome_uploaded"] else ""
     header_image = input_dict["headers_uploaded"].name if input_dict["headers_uploaded"] else ""
     icon_image = input_dict["icon_uploaded"].name if input_dict["icon_uploaded"] else ""
+
+    # Then initialize the project files by replacing placeholders
     initialize_project(
         repo_path=st.session_state["repo_path"],
         project_name=input_dict["project_name"],
@@ -360,6 +363,15 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         notebook_version=input_dict["notebook_version"],
         matplotlib_version=input_dict["matplotlib_version"],
     )
+
+    # Also, check if there is a README.md file and if so remove it and create a new one with the project name
+    readme_path = st.session_state["repo_path"] / "README.md"
+    if readme_path.exists():
+        readme_path.unlink()
+    with open(readme_path, "w", encoding="utf-8") as f:
+        f.write(f"# {input_dict['project_name']}\n\n")
+        f.write("This repository was initialized using LabConstrictor.\n")
+        f.write("Please, feel free to customize this README file.\n")
 
     # Create a pull request using GitHub CLI
     pr_title = f"Add submission for {input_dict['project_name']}"
