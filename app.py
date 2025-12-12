@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-import os
 from pathlib import Path
 from typing import List
 import streamlit as st
@@ -88,23 +87,8 @@ def has_changes_to_commit(path, cwd):
         st.write(f"⚠️ Could not check changes: {e}")
         return False
 
-def run_git_command(args, cwd=None, github_token: str | None = None):
-    git_cmd = ["git"]
-    env = None
-    if github_token:
-        sanitized_token = github_token.strip()
-        if sanitized_token:
-            git_cmd.extend(
-                [
-                    "-c",
-                    f"http.extraHeader=Authorization: Bearer {sanitized_token}",
-                ]
-            )
-            env = os.environ.copy()
-            env["GIT_HTTP_AUTHORIZATION"] = f"Bearer {sanitized_token}"
-    result = subprocess.run(
-        git_cmd + args, cwd=cwd, capture_output=True, text=True, env=env
-    )
+def run_git_command(args, cwd):
+    result = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"❌ Git error running 'git {' '.join(args)}':\n{result.stderr.strip()}")
     return result.stdout.strip()
@@ -122,7 +106,7 @@ def push_config_changes_to_new_branch(
         run_git_command(["config", "user.name", username], cwd=repo_path)
 
         run_git_command(["checkout", "main"], cwd=repo_path)
-        run_git_command(["pull", "origin", "main"], cwd=repo_path, github_token=github_token)
+        run_git_command(["pull", "origin", "main"], cwd=repo_path)
 
         if not has_changes_to_commit(folder, cwd=repo_path):
             st.write(f"ℹ️ No changes detected in `{folder}`. Nothing to push.")
@@ -133,11 +117,7 @@ def push_config_changes_to_new_branch(
         run_git_command(["checkout", "-b", new_branch], cwd=repo_path)
         run_git_command(["add", folder], cwd=repo_path)
         run_git_command(["commit", "-m", commit_message], cwd=repo_path)
-        run_git_command(
-            ["push", "--set-upstream", "origin", new_branch],
-            cwd=repo_path,
-            github_token=github_token,
-        )
+        run_git_command(["push", "--set-upstream", "origin", new_branch], cwd=repo_path)
 
         st.write(f"✅ Successfully pushed to branch `{new_branch}`.")
         return new_branch
@@ -215,7 +195,7 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str,
     if "repo_path" in st.session_state and (st.session_state["repo_path"] / ".git").exists():
         st.write(f"✅ Git repo already cloned at {st.session_state['repo_path']}")
     else:
-        st.session_state["repo_path"] = Path.cwd() / github_repo_name # Path(tempfile.mkdtemp(prefix="streamlit_temp-")) / github_repo_name 
+        st.session_state["repo_path"] = Path.cwd / github_repo_name 
         
         if st.session_state["repo_path"].exists():
             st.write(f"🧹 Removing existing folder at {st.session_state['repo_path']}...")
@@ -223,18 +203,9 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str,
 
         st.write(f"🌀 Cloning Git repo to {st.session_state['repo_path']}...")
 
-        try:
-            run_git_command(
-                [
-                    "clone",
-                    repo_url,
-                    str(st.session_state["repo_path"]),
-                ],
-                cwd=None,
-                github_token=personal_access_token,
-            )
-        except RuntimeError as clone_error:
-            raise RuntimeError(f"❌ Git clone failed: {clone_error}") from clone_error
+        result = subprocess.run(["git", "clone", repo_url, st.session_state["repo_path"]], capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"❌ Git clone failed: {result.stderr.strip()}")
         
         st.write(f"✅ Git repo cloned at {st.session_state['repo_path']}")
 
