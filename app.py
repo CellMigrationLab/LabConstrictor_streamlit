@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-import requests
-from typing import List
 from pathlib import Path
-import tempfile
 from typing import List
-import subprocess
 import streamlit as st
+import subprocess
+import requests
+import tempfile
 
 st.set_page_config(page_title="Python Project Intake", layout="centered")
 
