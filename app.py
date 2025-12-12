@@ -3,13 +3,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import List
 import base64
 import os
 import streamlit as st
 import subprocess
 import requests
-import tempfile
 
 st.set_page_config(page_title="Python Project Intake", layout="centered")
 
@@ -22,53 +20,36 @@ if "github_repo_url" not in st.session_state:
     st.session_state["github_repo_url"] = ""
 
 
-def validate_submission(project_name: str, uploads: List) -> List[str]:
+def validate_submission(submitted_info):
     """Ensure required inputs exist and meet basic quality checks."""
-    errors: List[str] = []
-    if not project_name.strip():
-        errors.append("Please enter the name of the project.")
-    if not uploads:
-        errors.append("Upload at least one file so we can inspect the project.")
+    errors = []
+
+    project_name = submitted_info.get("project_name", "").strip()
+    if not project_name:
+        errors.append("Project name is required.")
+    project_version = submitted_info.get("project_version", "").strip()
+    if not project_version:
+        project_version = "0.0.1"
+    python_version = submitted_info.get("python_version", "").strip()
+    if python_version not in PYTHON_VERSIONS:
+        errors.append("Please select a valid Python version.")
+
+    if uploaded_icon := submitted_info.get("icon_uploaded"):
+        if uploaded_icon.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+            errors.append(f"Icon file '{uploaded_icon.name}' exceeds {MAX_FILE_SIZE_MB} MB limit.")
+    if uploaded_welcome := submitted_info.get("welcome_uploaded"):
+        if uploaded_welcome.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+            errors.append(f"Welcome file '{uploaded_welcome.name}' exceeds {MAX_FILE_SIZE_MB} MB limit.")
+    if uploaded_headers := submitted_info.get("headers_uploaded"):
+        if uploaded_headers.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+            errors.append(f"Headers file '{uploaded_headers.name}' exceeds {MAX_FILE_SIZE_MB} MB limit.")
+
+    if not errors:
+        st.session_state["ready_for_pr"] = True
     else:
-        oversized = [
-            upload.name
-            for upload in uploads
-            if upload.size > MAX_FILE_SIZE_MB * 1024 * 1024
-        ]
-        if oversized:
-            joined = ", ".join(oversized)
-            errors.append(
-                f"The following files are larger than {MAX_FILE_SIZE_MB} MB: {joined}."
-            )
+        st.session_state["ready_for_pr"] = False
+
     return errors
-
-
-def project_progress(name: str, version: str, uploads: List) -> int:
-    """Compute how many of the required inputs have been filled out."""
-    checks = [
-        bool(name.strip()),
-        bool(version),
-        bool(uploads),
-    ]
-    return int((sum(checks) / len(checks)) * 100)
-
-
-def python_version_hint(version: str) -> str:
-    """Return feedback copy based on the selected Python version."""
-    major, minor = (int(part) for part in version.split("."))
-    if (major, minor) < (3, 10):
-        return (
-            "Python versions earlier than 3.10 only receive security fixes. "
-            "Consider upgrading soon."
-        )
-    if (major, minor) >= (3, 12):
-        return "Great pick! Python 3.12+ includes the latest performance gains."
-    return ""
-
-def log_submission(name: str, version: str, uploads: List) -> None:
-    """Placeholder hook that currently just prints submitted values."""
-    file_names = [upload.name for upload in uploads] if uploads else []
-    print(f"[submission] project={name!r}, python={version}, files={file_names}")
 
 def get_authenticated_username(token):
     headers = {
@@ -89,7 +70,7 @@ def has_changes_to_commit(path, cwd):
         st.write(f"⚠️ Could not check changes: {e}")
         return False
 
-def run_git_command(args, cwd=None, github_token: str | None = None):
+def run_git_command(args, cwd=None, github_token=None):
     git_cmd = ["git"]
     env = None
     if github_token:
@@ -257,6 +238,12 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str,
         github_token=personal_access_token,
         repo_path=st.session_state["repo_path"]
     )
+    
+    st.write(f"🧹 Cleaning the repo {st.session_state['repo_path']}.")
+    subprocess.run(["rm", "-rf", str(st.session_state["repo_path"])])
+    st.write(f"✅ Cleaned up the repo.")
+
+    st.write("🏆 Finished!")
 
 with st.sidebar:
     st.header("Submission tips")
@@ -275,25 +262,53 @@ st.caption(
 )
 
 with st.form("project_form", clear_on_submit=False):
-    project_name = st.text_input("Name of the project", placeholder="Cool Analytics API")
-    python_version = st.selectbox("Python version", PYTHON_VERSIONS, index=1)
-    uploaded_files = st.file_uploader(
-        "Upload project files",
-        accept_multiple_files=True,
-        type=None,
-        help=f"Individual files must be smaller than {MAX_FILE_SIZE_MB} MB.",
+    project_name = st.text_input("*Name of the project", placeholder="Cool Analytics API")
+    project_version = st.text_input("*Initial project version", placeholder="0.0.1", help="Specify the initial version of the project.")
+    python_col, jupyterlab_col, notebook_col, matplotlib_col = st.columns(4, gap="small")  # or st.columns([2,1,1])
+    with python_col:
+        python_version = st.selectbox("*Python version", PYTHON_VERSIONS, index=1)
+    with jupyterlab_col:
+        jupyterlab_version = st.checkbox("Includes JupyterLab", value=False, help="Check if the project includes JupyterLab components.")
+    with notebook_col:
+        notebook_version = st.checkbox("Includes Notebooks", value=False, help="Check if the project includes Jupyter Notebooks.")
+    with matplotlib_col:
+        matplotlib_version = st.checkbox("Uses Matplotlib", value=False, help="Check if the project uses Matplotlib for plotting.")
+    
+    uploaded_icon = st.file_uploader(
+        "(Optional) Upload project icon image",
+        accept_multiple_files=False,
+        type="png",
+        help=f"",
+    )
+    uploaded_welcome = st.file_uploader(
+        "(Optional) Upload project welcome image",
+        accept_multiple_files=False,
+        type="png",
+        help=f"",
+    )
+    uploaded_headers = st.file_uploader(
+        "(Optional) Upload project headers image",
+        accept_multiple_files=False,
+        type="png",
+        help=f"",
     )
     submitted = st.form_submit_button("Validate submission", use_container_width=True)
 
-progress = project_progress(project_name, python_version, uploaded_files)
-st.progress(progress / 100, text=f"{progress}% of required information captured")
-
-version_message = python_version_hint(python_version)
-if version_message:
-    st.info(version_message)
 
 if submitted:
-    validation_errors = validate_submission(project_name, uploaded_files)
+    submitted_info = {
+        "project_name": project_name,
+        "project_version": project_version,
+        "python_version": python_version,
+        "jupyterlab_included": jupyterlab_version,
+        "notebook_included": notebook_version,
+        "matplotlib_used": matplotlib_version,
+        "icon_uploaded": uploaded_icon.name if uploaded_icon else None,
+        "welcome_uploaded": uploaded_welcome.name if uploaded_welcome else None,
+        "headers_uploaded": uploaded_headers.name if uploaded_headers else None,    
+    }
+
+    validation_errors = validate_submission(submitted_info)
     if validation_errors:
         st.error("Please fix the following before resubmitting:")
         for item in validation_errors:
@@ -303,18 +318,6 @@ if submitted:
         st.success(
             f"Project '{project_name.strip()}' targeting Python {python_version} "
             "was submitted successfully!"
-        )
-        log_submission(project_name, python_version, uploaded_files)
-        st.session_state["ready_for_pr"] = True
-        st.session_state["last_project_name"] = project_name.strip()
-        st.session_state["last_python_version"] = python_version
-        st.session_state["last_file_names"] = [
-            upload.name for upload in uploaded_files
-        ]
-        total_size_mb = (
-            sum(upload.size for upload in uploaded_files) / (1024 * 1024)
-            if uploaded_files
-            else 0
         )
 
 if st.session_state.get("ready_for_pr"):
@@ -335,13 +338,9 @@ if st.session_state.get("ready_for_pr"):
         disabled=not repo_url.strip(),
     )
     if create_pr:
-        project = st.session_state.get("last_project_name", project_name)
-        version = st.session_state.get("last_python_version", python_version)
-        files = st.session_state.get("last_file_names", [])
         
         with st.status("Creating pull request...", expanded=True) as status:
             try:
-                enqueue_pull_request(repo_url.strip(), token.strip(),
-                                    {"project": project, "version": version, "files": files})
+                enqueue_pull_request(repo_url.strip(), token.strip(), submitted_info)
             except Exception as e:
                 status.error(f"❌ Failed to create PR:\n{e}")
