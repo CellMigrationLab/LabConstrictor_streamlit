@@ -117,6 +117,7 @@ def push_config_changes_to_new_branch(
         run_git_command(["checkout", "-b", new_branch], cwd=repo_path)
         run_git_command(["add", folder], cwd=repo_path)
         run_git_command(["commit", "-m", commit_message], cwd=repo_path)
+        st.write(f"✅ repo path: {repo_path} with elements: {list(Path(repo_path).iterdir())}")
         run_git_command(["push", "--set-upstream", "origin", new_branch], cwd=repo_path)
 
         st.write(f"✅ Successfully pushed to branch `{new_branch}`.")
