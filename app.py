@@ -1,4 +1,3 @@
-"""Minimal Streamlit form to capture a project name, Python version, and uploaded files."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -8,10 +7,43 @@ import os
 import streamlit as st
 import subprocess
 import requests
+import re
 
 st.set_page_config(page_title="Python Project Intake", layout="centered")
 
 PYTHON_VERSIONS = ["3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
+PYTHON_COMPATIBILITY_MATRIX = {
+    "3.13": {
+        "jupyterlab": ["4.2", "4.1", "4.0"],
+        "notebook": ["7.2", "7.1"],
+        "matplotlib": ["3.9", "3.8"],
+    },
+    "3.12": {
+        "jupyterlab": ["4.1", "4.0", "3.6"],
+        "notebook": ["7.1", "7.0", "6.5"],
+        "matplotlib": ["3.9", "3.8", "3.7"],
+    },
+    "3.11": {
+        "jupyterlab": ["4.0", "3.6", "3.5"],
+        "notebook": ["7.0", "6.5", "6.4"],
+        "matplotlib": ["3.8", "3.7", "3.6"],
+    },
+    "3.10": {
+        "jupyterlab": ["3.6", "3.5", "3.4"],
+        "notebook": ["6.5", "6.4", "6.3"],
+        "matplotlib": ["3.7", "3.6", "3.5"],
+    },
+    "3.9": {
+        "jupyterlab": ["3.5", "3.4"],
+        "notebook": ["6.4", "6.3", "6.2"],
+        "matplotlib": ["3.6", "3.5", "3.4"],
+    },
+    "3.8": {
+        "jupyterlab": ["3.4", "3.3"],
+        "notebook": ["6.3", "6.2", "6.1"],
+        "matplotlib": ["3.5", "3.4", "3.3"],
+    },
+}
 MAX_FILE_SIZE_MB = 25
 
 if "ready_for_pr" not in st.session_state:
@@ -27,9 +59,16 @@ def validate_submission(submitted_info):
     project_name = submitted_info.get("project_name", "").strip()
     if not project_name:
         errors.append("Project name is required.")
+
     project_version = submitted_info.get("project_version", "").strip()
     if not project_version:
-        project_version = "0.0.1"
+        errors.append("Project version is required.")
+    else:
+        semver_pattern = r"^\d+\.\d+\.\d+(-[0-9A-Za-z-.]+)?(\+[0-9A-Za-z-.]+)?$"
+        if not re.match(semver_pattern, project_version):
+            errors.append("Project version must follow semantic versioning (e.g., 1.0.0).")
+
+    
     python_version = submitted_info.get("python_version", "").strip()
     if python_version not in PYTHON_VERSIONS:
         errors.append("Please select a valid Python version.")
@@ -50,6 +89,18 @@ def validate_submission(submitted_info):
         st.session_state["ready_for_pr"] = False
 
     return errors
+
+
+def get_tool_version_options(python_version: str):
+    return PYTHON_COMPATIBILITY_MATRIX.get(
+        python_version, PYTHON_COMPATIBILITY_MATRIX[PYTHON_VERSIONS[0]]
+    )
+
+
+def reset_tool_versions():
+    for key in ("jupyterlab_version", "notebook_version", "matplotlib_version"):
+        if key in st.session_state:
+            del st.session_state[key]
 
 def get_authenticated_username(token):
     headers = {
@@ -186,12 +237,11 @@ def push_and_create_pr(folder, branch_prefix,
             github_token=github_token
         )
 
-def enqueue_pull_request(repo_url: str, personal_access_token:str, 
-                         input_dict: dict) -> None:
+def enqueue_pull_request(repo_url: str, personal_access_token:str, input_dict: dict) -> None:
     
-    st.write(f"🌀 Creating pull request for '{project}'...")
-
     github_owner, github_repo_name = repo_url.rstrip('/').split('/')[-2:]
+
+    st.write(f"🌀 Creating pull request for {github_repo_name}...")
 
     # Download the GitHub repo, create a branch, add files, open a PR, etc.
     if "repo_path" in st.session_state and (st.session_state["repo_path"] / ".git").exists():
@@ -255,64 +305,105 @@ with st.sidebar:
         """
     )
 
-st.title("Python Project Intake Form")
-st.caption(
-    "Share the name of your project, tell us which Python version it targets, "
-    "and attach any relevant files (source code, requirements, docs, etc.)."
-)
+st.title("LabConstrictor - Initialize your repository")
+st.caption("Once you have created a GitHub repository using the LabConstrictor template, you can use this form to initialize it with your project details.")
+st.caption("Fill in the project name, version, select the Python environment, and optionally upload images to customize your executable interface.")
+st.caption("Then, provide your GitHub repository URL and a Personal Access Token to create a pull request with the configuration changes.")
+st.caption("Once you submit the form, please follow the instructions described here: ...")
 
-with st.form("project_form", clear_on_submit=False):
-    project_name = st.text_input("*Name of the project", placeholder="Cool Analytics API")
-    project_version = st.text_input("*Initial project version", placeholder="0.0.1", help="Specify the initial version of the project.")
-    python_col, jupyterlab_col, notebook_col, matplotlib_col = st.columns(4, gap="small")  # or st.columns([2,1,1])
+runtime_container = st.container()
+with runtime_container:
+    ##########################################################
+    st.subheader("*Project basic info")
+    project_name = st.text_input("Name of the project", placeholder="Cool Analytics API")
+    project_version = st.text_input("Initial project version", placeholder="0.0.1", help="Specify the initial version of the project.")
+
+    ##########################################################
+    st.subheader("*Python environment")
+    python_col, jupyterlab_col, notebook_col, matplotlib_col = st.columns(4, gap="small")
     with python_col:
-        python_version = st.selectbox("*Python version", PYTHON_VERSIONS, index=1)
+        python_version = st.selectbox(
+            "Python version",
+            PYTHON_VERSIONS,
+            index=1,
+            key="python_version_choice",
+        )
+    previous_python_version = st.session_state.get("_prev_python_version")
+    if previous_python_version != python_version:
+        reset_tool_versions()
+        st.session_state["_prev_python_version"] = python_version
+    tool_version_options = get_tool_version_options(python_version)
+    jupyterlab_options = tool_version_options["jupyterlab"]
+    notebook_options = tool_version_options["notebook"]
+    matplotlib_options = tool_version_options["matplotlib"]
+    if st.session_state.get("jupyterlab_version") not in jupyterlab_options:
+        st.session_state["jupyterlab_version"] = jupyterlab_options[0]
+    if st.session_state.get("notebook_version") not in notebook_options:
+        st.session_state["notebook_version"] = notebook_options[0]
+    if st.session_state.get("matplotlib_version") not in matplotlib_options:
+        st.session_state["matplotlib_version"] = matplotlib_options[0]
     with jupyterlab_col:
-        jupyterlab_version = st.checkbox("Includes JupyterLab", value=False, help="Check if the project includes JupyterLab components.")
+        jupyterlab_version = st.selectbox(
+            "JupyterLab release",
+            jupyterlab_options,
+            help="Select the JupyterLab version compatible with your Python pick.",
+            key="jupyterlab_version",
+        )
     with notebook_col:
-        notebook_version = st.checkbox("Includes Notebooks", value=False, help="Check if the project includes Jupyter Notebooks.")
+        notebook_version = st.selectbox(
+            "Notebook release",
+            notebook_options,
+            help="Notebook versions are filtered to what works with the Python selection.",
+            key="notebook_version",
+        )
     with matplotlib_col:
-        matplotlib_version = st.checkbox("Uses Matplotlib", value=False, help="Check if the project uses Matplotlib for plotting.")
-    
+        matplotlib_version = st.selectbox(
+            "Matplotlib release",
+            matplotlib_options,
+            help="Pick the Matplotlib version aligned with the selected Python runtime.",
+            key="matplotlib_version",
+        )
+
+    ##########################################################
+    st.subheader("(Optional) Upload project images")
     uploaded_icon = st.file_uploader(
-        "(Optional) Upload project icon image",
+        "Project icon image (resized to 256 x 256 px)",
         accept_multiple_files=False,
         type="png",
         help=f"",
     )
     uploaded_welcome = st.file_uploader(
-        "(Optional) Upload project welcome image",
+        "Project welcome image (resized to 164 x 314 px)",
         accept_multiple_files=False,
         type="png",
         help=f"",
     )
     uploaded_headers = st.file_uploader(
-        "(Optional) Upload project headers image",
+        "Project headers image (resized to 150 x 57 px)",
         accept_multiple_files=False,
         type="png",
         help=f"",
     )
-    submitted = st.form_submit_button("Validate submission", use_container_width=True)
 
+    submitted = st.button("Validate submission", use_container_width=True)
 
 if submitted:
     submitted_info = {
         "project_name": project_name,
         "project_version": project_version,
         "python_version": python_version,
-        "jupyterlab_included": jupyterlab_version,
-        "notebook_included": notebook_version,
-        "matplotlib_used": matplotlib_version,
-        "icon_uploaded": uploaded_icon.name if uploaded_icon else None,
-        "welcome_uploaded": uploaded_welcome.name if uploaded_welcome else None,
-        "headers_uploaded": uploaded_headers.name if uploaded_headers else None,    
+        "jupyterlab_version": jupyterlab_version,
+        "notebook_version": notebook_version,
+        "matplotlib_version": matplotlib_version,
+        "icon_uploaded": uploaded_icon,
+        "welcome_uploaded": uploaded_welcome,
+        "headers_uploaded": uploaded_headers,    
     }
 
     validation_errors = validate_submission(submitted_info)
     if validation_errors:
-        st.error("Please fix the following before resubmitting:")
-        for item in validation_errors:
-            st.write(f"- {item}")
+        validation_error_list_text = ['\n - ' + e for e in validation_errors]
+        st.error(f"Please fix the following before resubmitting: {''.join(validation_error_list_text)}")
         st.session_state["ready_for_pr"] = False
     else:
         st.success(
@@ -337,8 +428,8 @@ if st.session_state.get("ready_for_pr"):
         "Create pull request",
         disabled=not repo_url.strip(),
     )
+
     if create_pr:
-        
         with st.status("Creating pull request...", expanded=True) as status:
             try:
                 enqueue_pull_request(repo_url.strip(), token.strip(), submitted_info)
