@@ -240,7 +240,63 @@ def push_and_create_pr(folder, branch_prefix,
             github_token=github_token
         )
 
-def enqueue_pull_request(repo_url: str, personal_access_token:str, input_dict: dict) -> None:
+
+def replace_in_file(file_path, old, new):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+    content = content.replace(old, new)
+    with open(file_path, 'w', encoding='utf-8') as file:
+        file.write(content)
+
+def initialize_project(project_name, version, welcome_image, header_image, icon_image,
+                       python_version, jupyterlab_version, notebook_version, matplotlib_version):
+    proyectname_lower = project_name.lower()
+
+    conversion_dict = {
+        "LOWER_PROJ_NAME": {
+            "environment.yaml": proyectname_lower,
+        },
+        "PROJECT_NAME": {
+            "construct.yaml": project_name,
+            "notebook_launcher.json": project_name,
+            ".tools/templates/Welcome_template.ipynb": project_name,
+            "app/bash_bat_scripts/post_install.bat": project_name,
+            "app/bash_bat_scripts/post_install.sh": project_name,
+            "app/bash_bat_scripts/pre_uninstall.bat": project_name,
+            "app/bash_bat_scripts/pre_uninstall.sh": project_name,
+            "app/bash_bat_scripts/uninstall.sh": project_name,
+        },
+        "VERSION_NUMBER": {
+            "construct.yaml": version,
+        },
+        "WELCOME_IMAGE": {
+            "construct.yaml": welcome_image,
+        },
+        "HEADER_IMAGE": {
+            "construct.yaml": header_image,
+        },
+        "ICON_IMAGE": {
+            "construct.yaml": icon_image,
+        },
+        "PYTHON_VERSION": {
+            "environment.yaml": python_version,
+        },
+        "JUPYTERLAB_VERSION": {
+            "environment.yaml": jupyterlab_version,
+        },
+        "NOTEBOOK_VERSION": {
+            "environment.yaml": notebook_version,
+        },
+        "MATPLOTLIB_VERSION": {
+            "environment.yaml": matplotlib_version,
+        },
+    }
+
+    for placeholder, files in conversion_dict.items():
+        for file_path, replacement in files.items():
+            replace_in_file(file_path, placeholder, replacement)
+
+def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     
     github_owner, github_repo_name = repo_url.rstrip('/').split('/')[-2:]
 
@@ -268,15 +324,34 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str, input_dict: d
         
         st.write(f"✅ Git repo cloned at {st.session_state['repo_path']}")
 
-    # Create a test text file to simulate adding files
-    test_file_path = st.session_state["repo_path"] / "README.md"
-    with open(test_file_path, "w") as f:
-        f.write(f"Project: {input_dict['project']}\n")
-        f.write(f"Python Version: {input_dict['version']}\n")
-        f.write(f"Files: {', '.join(input_dict['files'])}\n")
+    st.write("🛠 Initializing project files...")
+    # First move the uploaded files to the repo path under the app/logo
+    logo_path = st.session_state["repo_path"] / "app" / "logo"
+    logo_path.mkdir(parents=True, exist_ok=True)
+    if input_dict["welcome_uploaded"]:
+        with open(logo_path / input_dict["welcome_uploaded"].name, "wb") as f:
+            f.write(input_dict["welcome_uploaded"].getbuffer())
+    if input_dict["headers_uploaded"]:
+        with open(logo_path / input_dict["headers_uploaded"].name, "wb") as f:
+            f.write(input_dict["headers_uploaded"].getbuffer())
+    if input_dict["icon_uploaded"]:
+        with open(logo_path / input_dict["icon_uploaded"].name, "wb") as f:
+            f.write(input_dict["icon_uploaded"].getbuffer())
+    welcome_image = input_dict["welcome_uploaded"].name if input_dict["welcome_uploaded"] else ""
+    header_image = input_dict["headers_uploaded"].name if input_dict["headers_uploaded"] else ""
+    icon_image = input_dict["icon_uploaded"].name if input_dict["icon_uploaded"] else ""
+    initialize_project(
+        project_name=input_dict["project"],
+        version=input_dict["version"],
+        welcome_image=welcome_image,
+        header_image=header_image,
+        icon_image=icon_image,
+        python_version=input_dict["python_version"],
+        jupyterlab_version=input_dict["jupyterlab_version"],
+        notebook_version=input_dict["notebook_version"],
+        matplotlib_version=input_dict["matplotlib_version"],
+    )
 
-    st.write(f"✅ Created test file at {test_file_path}")
-  
     # Create a pull request using GitHub CLI
     pr_title = f"Add submission for {input_dict['project']}"
     pr_body = f"This PR adds the submission for the project {input_dict['project']} targeting Python {input_dict['version']}."
