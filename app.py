@@ -9,7 +9,10 @@ import subprocess
 import requests
 import re
 
-st.set_page_config(page_title="Python Project Intake", layout="centered")
+st.set_page_config(page_title="LabConstrictor - Repository initializer", 
+                   page_icon="🐍",
+                   layout="wide",
+                   )
 
 PYTHON_VERSIONS = ["3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
 PYTHON_COMPATIBILITY_MATRIX = {
@@ -305,7 +308,7 @@ with st.sidebar:
         """
     )
 
-st.title("LabConstrictor - Initialize your repository")
+st.title("LabConstrictor - Repository initializer")
 st.caption("Once you have created a GitHub repository using the LabConstrictor template, you can use this form to initialize it with your project details.")
 st.caption("Fill in the project name, version, select the Python environment, and optionally upload images to customize your executable interface.")
 st.caption("Then, provide your GitHub repository URL and a Personal Access Token to create a pull request with the configuration changes.")
