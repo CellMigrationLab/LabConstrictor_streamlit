@@ -195,8 +195,12 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str,
     if "repo_path" in st.session_state and (st.session_state["repo_path"] / ".git").exists():
         st.write(f"✅ Git repo already cloned at {st.session_state['repo_path']}")
     else:
-        st.session_state["repo_path"] = Path.cwd() / github_repo_name # Path(tempfile.mkdtemp(prefix="project-intake-"))
+        st.session_state["repo_path"] = Path(tempfile.mkdtemp(prefix="streamlit_temp-")) / github_repo_name 
         
+        if st.session_state["repo_path"].exists():
+            st.write(f"🧹 Removing existing folder at {st.session_state['repo_path']}...")
+            subprocess.run(["rm", "-rf", str(st.session_state["repo_path"])])
+
         st.write(f"🌀 Cloning Git repo to {st.session_state['repo_path']}...")
 
         result = subprocess.run(["git", "clone", repo_url, st.session_state["repo_path"]], capture_output=True, text=True)
