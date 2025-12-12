@@ -89,8 +89,8 @@ def has_changes_to_commit(path, cwd):
 
 def run_git_command(args, cwd):
     result = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
-    if result.returncode != +0:
-        raise RuntimeError(f"❌ Git error: {result.stderr.strip()}")
+    if result.returncode != 0:
+        raise RuntimeError(f"❌ Git error running 'git {' '.join(args)}':\n{result.stderr.strip()}")
     return result.stdout.strip()
 
 def push_config_changes_to_new_branch(
@@ -310,10 +310,9 @@ if st.session_state.get("ready_for_pr"):
         version = st.session_state.get("last_python_version", python_version)
         files = st.session_state.get("last_file_names", [])
         
-        status_placeholder = st.empty()
-        try:
-            with st.status("Creating pull request...", expanded=True) as status:
+        with st.status("Creating pull request...", expanded=True) as status:
+            try:
                 enqueue_pull_request(repo_url.strip(), token.strip(),
                                     {"project": project, "version": version, "files": files})
-        except Exception as e:
-            status_placeholder.error(f"❌ Failed to create PR: {e}")
+            except Exception as e:
+                status.error(f"❌ Failed to create PR:\n{e}")
