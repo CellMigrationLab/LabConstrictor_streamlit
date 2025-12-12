@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from pathlib import Path
 from typing import List
 import streamlit as st
@@ -87,8 +88,9 @@ def has_changes_to_commit(path, cwd):
         st.write(f"⚠️ Could not check changes: {e}")
         return False
 
-def run_git_command(args, cwd, github_token: str | None = None):
+def run_git_command(args, cwd=None, github_token: str | None = None):
     git_cmd = ["git"]
+    env = None
     if github_token:
         sanitized_token = github_token.strip()
         if sanitized_token:
@@ -98,7 +100,11 @@ def run_git_command(args, cwd, github_token: str | None = None):
                     f"http.extraHeader=Authorization: Bearer {sanitized_token}",
                 ]
             )
-    result = subprocess.run(git_cmd + args, cwd=cwd, capture_output=True, text=True)
+            env = os.environ.copy()
+            env["GIT_HTTP_AUTHORIZATION"] = f"Bearer {sanitized_token}"
+    result = subprocess.run(
+        git_cmd + args, cwd=cwd, capture_output=True, text=True, env=env
+    )
     if result.returncode != 0:
         raise RuntimeError(f"❌ Git error running 'git {' '.join(args)}':\n{result.stderr.strip()}")
     return result.stdout.strip()
@@ -209,7 +215,7 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str,
     if "repo_path" in st.session_state and (st.session_state["repo_path"] / ".git").exists():
         st.write(f"✅ Git repo already cloned at {st.session_state['repo_path']}")
     else:
-        st.session_state["repo_path"] = Path(tempfile.mkdtemp(prefix="streamlit_temp-")) / github_repo_name 
+        st.session_state["repo_path"] = Path.cwd() / github_repo_name # Path(tempfile.mkdtemp(prefix="streamlit_temp-")) / github_repo_name 
         
         if st.session_state["repo_path"].exists():
             st.write(f"🧹 Removing existing folder at {st.session_state['repo_path']}...")
@@ -217,20 +223,18 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str,
 
         st.write(f"🌀 Cloning Git repo to {st.session_state['repo_path']}...")
 
-        clone_cmd = ["git"]
-        token_for_clone = (personal_access_token or "").strip()
-        if token_for_clone:
-            clone_cmd.extend(
+        try:
+            run_git_command(
                 [
-                    "-c",
-                    f"http.extraHeader=Authorization: Bearer {token_for_clone}",
-                ]
+                    "clone",
+                    repo_url,
+                    str(st.session_state["repo_path"]),
+                ],
+                cwd=None,
+                github_token=personal_access_token,
             )
-        clone_cmd.extend(["clone", repo_url, st.session_state["repo_path"]])
-
-        result = subprocess.run(clone_cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError(f"❌ Git clone failed: {result.stderr.strip()}")
+        except RuntimeError as clone_error:
+            raise RuntimeError(f"❌ Git clone failed: {clone_error}") from clone_error
         
         st.write(f"✅ Git repo cloned at {st.session_state['repo_path']}")
 
