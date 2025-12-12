@@ -195,7 +195,7 @@ def enqueue_pull_request(repo_url: str, personal_access_token:str,
     if "repo_path" in st.session_state and (st.session_state["repo_path"] / ".git").exists():
         st.write(f"✅ Git repo already cloned at {st.session_state['repo_path']}")
     else:
-        st.session_state["repo_path"] = Path.cwd / github_repo_name 
+        st.session_state["repo_path"] = Path.cwd() / github_repo_name 
         
         if st.session_state["repo_path"].exists():
             st.write(f"🧹 Removing existing folder at {st.session_state['repo_path']}...")
