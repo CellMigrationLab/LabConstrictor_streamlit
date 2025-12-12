@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 import base64
+import shutil
 import os
+import stat
 import streamlit as st
 import subprocess
 import requests
@@ -168,7 +170,6 @@ def push_config_changes_to_new_branch(
         run_git_command(["checkout", "-b", new_branch], cwd=repo_path)
         run_git_command(["add", folder], cwd=repo_path)
         run_git_command(["commit", "-m", commit_message], cwd=repo_path)
-        st.write(f"✅ repo path: {repo_path} with elements: {list(Path(repo_path).iterdir())}")
         run_git_command(
             ["push", "--set-upstream", "origin", new_branch],
             cwd=repo_path,
@@ -240,7 +241,14 @@ def push_and_create_pr(folder, branch_prefix,
             github_token=github_token
         )
 
-
+# Handle Windows permission issues with .git directories
+def handle_remove_error(func, path, exc_info):
+    if not os.access(path, os.W_OK):
+        os.chmod(path, stat.S_IWUSR | stat.S_IRUSR)
+        func(path)
+    else:
+        raise exc_info[1]
+        
 def replace_in_file(file_path, old, new):
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
@@ -248,7 +256,7 @@ def replace_in_file(file_path, old, new):
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(content)
 
-def initialize_project(project_name, version, welcome_image, header_image, icon_image,
+def initialize_project(repo_path, project_name, version, welcome_image, header_image, icon_image,
                        python_version, jupyterlab_version, notebook_version, matplotlib_version):
     proyectname_lower = project_name.lower()
 
@@ -258,8 +266,8 @@ def initialize_project(project_name, version, welcome_image, header_image, icon_
         },
         "PROJECT_NAME": {
             "construct.yaml": project_name,
-            "notebook_launcher.json": project_name,
             ".tools/templates/Welcome_template.ipynb": project_name,
+            "app/menuinst/notebook_launcher.json": project_name,
             "app/bash_bat_scripts/post_install.bat": project_name,
             "app/bash_bat_scripts/post_install.sh": project_name,
             "app/bash_bat_scripts/pre_uninstall.bat": project_name,
@@ -294,7 +302,7 @@ def initialize_project(project_name, version, welcome_image, header_image, icon_
 
     for placeholder, files in conversion_dict.items():
         for file_path, replacement in files.items():
-            replace_in_file(file_path, placeholder, replacement)
+            replace_in_file(repo_path / file_path, placeholder, replacement)
 
 def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     
@@ -308,9 +316,9 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     else:
         st.session_state["repo_path"] = Path.cwd() / github_repo_name 
         
-        if st.session_state["repo_path"].exists():
+        if (st.session_state["repo_path"] / ".git").exists():
             st.write(f"🧹 Removing existing folder at {st.session_state['repo_path']}...")
-            subprocess.run(["rm", "-rf", str(st.session_state["repo_path"])])
+            shutil.rmtree(st.session_state["repo_path"], onerror=handle_remove_error)
 
         st.write(f"🌀 Cloning Git repo to {st.session_state['repo_path']}...")
 
@@ -341,8 +349,9 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     header_image = input_dict["headers_uploaded"].name if input_dict["headers_uploaded"] else ""
     icon_image = input_dict["icon_uploaded"].name if input_dict["icon_uploaded"] else ""
     initialize_project(
-        project_name=input_dict["project"],
-        version=input_dict["version"],
+        repo_path=st.session_state["repo_path"],
+        project_name=input_dict["project_name"],
+        version=input_dict["project_version"],
         welcome_image=welcome_image,
         header_image=header_image,
         icon_image=icon_image,
@@ -353,13 +362,13 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     )
 
     # Create a pull request using GitHub CLI
-    pr_title = f"Add submission for {input_dict['project']}"
-    pr_body = f"This PR adds the submission for the project {input_dict['project']} targeting Python {input_dict['version']}."
+    pr_title = f"Add submission for {input_dict['project_name']}"
+    pr_body = f"This PR adds the submission for the project {input_dict['project_name']} v{input_dict['project_version']}."
     
     push_and_create_pr(
         folder=st.session_state["repo_path"],
         branch_prefix="submission",
-        commit_message=f"Add submission for {input_dict['project']}",
+        commit_message=f"Add submission for {input_dict['project_name']}",
         pr_title=pr_title,
         pr_body=pr_body,
         github_repo_url=repo_url,
@@ -368,7 +377,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     )
     
     st.write(f"🧹 Cleaning the repo {st.session_state['repo_path']}.")
-    subprocess.run(["rm", "-rf", str(st.session_state["repo_path"])])
+    shutil.rmtree(st.session_state["repo_path"], onerror=handle_remove_error)
     st.write(f"✅ Cleaned up the repo.")
 
     st.write("🏆 Finished!")
@@ -466,7 +475,7 @@ with runtime_container:
     submitted = st.button("Validate submission", use_container_width=True)
 
 if submitted:
-    submitted_info = {
+    st.session_state["submitted_info"] = {
         "project_name": project_name,
         "project_version": project_version,
         "python_version": python_version,
@@ -478,7 +487,7 @@ if submitted:
         "headers_uploaded": uploaded_headers,    
     }
 
-    validation_errors = validate_submission(submitted_info)
+    validation_errors = validate_submission(st.session_state["submitted_info"])
     if validation_errors:
         validation_error_list_text = ['\n - ' + e for e in validation_errors]
         st.error(f"Please fix the following before resubmitting: {''.join(validation_error_list_text)}")
@@ -509,7 +518,8 @@ if st.session_state.get("ready_for_pr"):
 
     if create_pr:
         with st.status("Creating pull request...", expanded=True) as status:
-            try:
-                enqueue_pull_request(repo_url.strip(), token.strip(), submitted_info)
-            except Exception as e:
-                status.error(f"❌ Failed to create PR:\n{e}")
+            enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+            # try:
+            #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+            # except Exception as e:
+            #     status.error(f"❌ Failed to create PR:\n{e}")
