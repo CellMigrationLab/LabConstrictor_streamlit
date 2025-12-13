@@ -256,7 +256,7 @@ def handle_remove_error(func, path, exc_info):
 def replace_in_file(file_path, old, new):
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
-    content = content.replace(old, new)
+    content = content.replace(old, new.strip())
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(content)
 
