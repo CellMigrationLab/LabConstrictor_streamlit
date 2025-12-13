@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-import base64
-import shutil
-import os
-import stat
+from io import BytesIO
+from PIL import Image
 import streamlit as st
 import subprocess
 import requests
-import re
-from PIL import Image
 import struct
-from io import BytesIO
+import base64
+import shutil
 import yaml
+import stat
+import re
+import os
 
 st.set_page_config(page_title="LabConstrictor - Repository initializer", 
                    page_icon="🐍",
@@ -298,7 +298,7 @@ def create_icns(img, output_path):
         f.write(icns_data)
 
 def initialize_project(repo_path, project_name, version, 
-                       welcome_image_path, header_image_path, logo_image_path,
+                       welcome_image_path, header_image_path, icon_image_path,
                        ico_image_path, icns_image_path, 
                        python_version, jupyterlab_version, 
                        notebook_version, matplotlib_version):
@@ -328,7 +328,7 @@ def initialize_project(repo_path, project_name, version,
             "construct.yaml": header_image_path,
         },
         "ICON_IMAGE": {
-            "construct.yaml": logo_image_path,
+            "construct.yaml": icon_image_path,
         },
         "PYTHON_VERSION": {
             "environment.yaml": python_version,
@@ -354,7 +354,7 @@ def initialize_project(repo_path, project_name, version,
     if notebook_launcher_path.exists():
         with open(notebook_launcher_path, "r", encoding="utf-8") as f:
             launcher_data = f.read()
-        if logo_image_path:
+        if icon_image_path:
             launcher_data = launcher_data.replace("ICON_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/icon.png")
         else:
             launcher_data = launcher_data.replace("ICON_IMAGE_PATH", f"")
@@ -396,7 +396,7 @@ def initialize_project(repo_path, project_name, version,
 
     # Check if the images paths are provided and not already in the list¨
     image_mappings = [
-        (logo_image_path, f"{project_name}/icon.png"),
+        (icon_image_path, f"{project_name}/icon.png"),
         (ico_image_path, f"{project_name}/icon.ico"),
         (icns_image_path, f"{project_name}/icon.icns"),
     ]
