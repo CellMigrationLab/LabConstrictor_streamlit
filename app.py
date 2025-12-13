@@ -10,6 +10,10 @@ import streamlit as st
 import subprocess
 import requests
 import re
+from PIL import Image
+import struct
+from io import BytesIO
+import yaml
 
 st.set_page_config(page_title="LabConstrictor - Repository initializer", 
                    page_icon="🐍",
@@ -256,8 +260,48 @@ def replace_in_file(file_path, old, new):
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(content)
 
-def initialize_project(repo_path, project_name, version, welcome_image, header_image, icon_image,
-                       python_version, jupyterlab_version, notebook_version, matplotlib_version):
+
+def create_icns(img, output_path):
+    # Function taken from: https://github.com/jojomondag/PNG_to_ico_to_icns_converter/blob/main/PNG_to_ico_to_icns_converter.py
+    # Define the icon types and sizes
+    icon_sizes = {
+        'icp4': (16, 16),       # 16x16
+        'icp5': (32, 32),       # 32x32
+        'icp6': (64, 64),       # 64x64
+        'ic07': (128, 128),     # 128x128
+        'ic08': (256, 256),     # 256x256
+        'ic09': (512, 512),     # 512x512
+        'ic10': (1024, 1024),   # 1024x1024
+    }
+
+    icns_data = b''
+    for icon_type, size in icon_sizes.items():
+        # Use different interpolation methods depending on size
+        if size[0] <= 32:  # For very small sizes, use NEAREST for crispness
+            resized_img = img.resize(size, Image.NEAREST)
+        else:  # For larger sizes, use LANCZOS for better quality
+            resized_img = img.resize(size, Image.LANCZOS)
+
+        # Save the image to PNG format in memory
+        png_data_io = BytesIO()
+        resized_img.save(png_data_io, format='PNG')
+        png_data = png_data_io.getvalue()
+
+        # Build the icon block
+        icon_block = icon_type.encode('utf-8') + struct.pack('>I', len(png_data) + 8) + png_data
+        icns_data += icon_block
+
+    # ICNS header
+    icns_header = b'icns' + struct.pack('>I', len(icns_data) + 8)
+    with open(output_path, 'wb') as f:
+        f.write(icns_header)
+        f.write(icns_data)
+
+def initialize_project(repo_path, project_name, version, 
+                       welcome_image_path, header_image_path, logo_image_path,
+                       ico_image_path, icns_image_path, 
+                       python_version, jupyterlab_version, 
+                       notebook_version, matplotlib_version):
     proyectname_lower = project_name.lower()
 
     conversion_dict = {
@@ -278,13 +322,13 @@ def initialize_project(repo_path, project_name, version, welcome_image, header_i
             "construct.yaml": version,
         },
         "WELCOME_IMAGE": {
-            "construct.yaml": welcome_image,
+            "construct.yaml": welcome_image_path,
         },
         "HEADER_IMAGE": {
-            "construct.yaml": header_image,
+            "construct.yaml": header_image_path,
         },
         "ICON_IMAGE": {
-            "construct.yaml": icon_image,
+            "construct.yaml": logo_image_path,
         },
         "PYTHON_VERSION": {
             "environment.yaml": python_version,
@@ -300,9 +344,77 @@ def initialize_project(repo_path, project_name, version, welcome_image, header_i
         },
     }
 
+    # Replace placeholders in files
     for placeholder, files in conversion_dict.items():
         for file_path, replacement in files.items():
             replace_in_file(repo_path / file_path, placeholder, replacement)
+
+    # Update the notebook launcher JSON file to set the icons if needed
+    notebook_launcher_path = repo_path / "app" / "menuinst" / "notebook_launcher.json"
+    if notebook_launcher_path.exists():
+        with open(notebook_launcher_path, "r", encoding="utf-8") as f:
+            launcher_data = f.read()
+        if logo_image_path:
+            launcher_data = launcher_data.replace("ICON_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/icon.png")
+        else:
+            launcher_data = launcher_data.replace("ICON_IMAGE_PATH", f"")
+        if ico_image_path:
+            launcher_data = launcher_data.replace("ICON_ICO_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/icon.ico")
+        else:
+            launcher_data = launcher_data.replace("ICON_ICO_IMAGE_PATH", f"")
+        if icns_image_path:
+            launcher_data = launcher_data.replace("ICON_ICNS_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/icon.icns")
+        else:
+            launcher_data = launcher_data.replace("ICON_ICNS_IMAGE_PATH", f"")
+        with open(notebook_launcher_path, "w", encoding="utf-8") as f:
+            f.write(launcher_data)
+
+    # Update the construct.yaml extra_files to include the images if they were provided
+    # Read the construct.yaml to check if images need to be set
+    construct_path = repo_path / "construct.yaml"
+    construct_data = yaml.safe_load(construct_path.read_text(encoding="utf-8"))
+    extra_files = construct_data.get("extra_files")
+    if extra_files is None:
+        extra_files = []
+        construct_data["extra_files"] = extra_files
+    
+    # Normalize existing entries into a dict for quick lookup
+    existing_sources = set()
+    existing_dests = set()
+    normalized_items = []
+
+    for item in extra_files:
+        # Items can be either dicts (k: v) or strings with mapping? Assume dicts per example
+        if isinstance(item, dict):
+            for src, dst in item.items():
+                existing_sources.add(str(src))
+                existing_dests.add(str(dst))
+                normalized_items.append({str(src): str(dst)})
+        else:
+            # If strings are present, keep them
+            normalized_items.append(item)
+
+    # Check if the images paths are provided and not already in the list¨
+    image_mappings = [
+        (logo_image_path, f"{project_name}/icon.png"),
+        (ico_image_path, f"{project_name}/icon.ico"),
+        (icns_image_path, f"{project_name}/icon.icns"),
+    ]
+    for src_path, dest_path in image_mappings:
+        if src_path and str(src_path) not in existing_sources and dest_path not in existing_dests:
+            normalized_items.append({str(src_path): dest_path})
+
+    # Optionally sort entries (dicts by their single key) for determinism
+    def sort_key(item):
+        if isinstance(item, dict):
+            # single-key dict
+            k = next(iter(item.keys()))
+            return (0, k)
+        return (1, str(item))
+
+    normalized_items.sort(key=sort_key)
+    construct_data["extra_files"] = normalized_items
+
 
 def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     
@@ -334,30 +446,47 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
     st.write("🛠 Initializing project files...")
 
+    logo_folder_path = st.session_state["repo_path"] / "app" / "logo"
+    logo_folder_path.mkdir(parents=True, exist_ok=True)
+
+    icon_path, ico_path, icns_path, welcome_path, headers_path = "", "", "", "", ""
+
+    # Convert the uploaded icon PNg to ICO format and 
+    if input_dict["icon_uploaded"]:
+        icon_path = logo_folder_path / input_dict["icon_uploaded"].name
+        ico_path = logo_folder_path / "icon.ico"
+        icns_path = logo_folder_path / "icon.icns"
+        with open(icon_path, "wb") as f:
+            f.write(input_dict["icon_uploaded"].getbuffer())
+
+        # Load the uploaded image
+        ico_logo = Image.open(input_dict["icon_uploaded"])
+        # Save as ICO
+        ico_logo.save(ico_path, 
+                  format='ICO', sizes=[(16,16), (32,32), (64,64), (128,128), (256,256)])
+        # Save as ICNS
+        create_icns(ico_logo, icns_path)
+
     # First move the uploaded files to the repo path under the app/logo
-    logo_path = st.session_state["repo_path"] / "app" / "logo"
-    logo_path.mkdir(parents=True, exist_ok=True)
     if input_dict["welcome_uploaded"]:
-        with open(logo_path / input_dict["welcome_uploaded"].name, "wb") as f:
+        welcome_path = logo_folder_path / input_dict["welcome_uploaded"].name
+        with open(welcome_path, "wb") as f:
             f.write(input_dict["welcome_uploaded"].getbuffer())
     if input_dict["headers_uploaded"]:
-        with open(logo_path / input_dict["headers_uploaded"].name, "wb") as f:
+        headers_path = logo_folder_path / input_dict["headers_uploaded"].name
+        with open(headers_path, "wb") as f:
             f.write(input_dict["headers_uploaded"].getbuffer())
-    if input_dict["icon_uploaded"]:
-        with open(logo_path / input_dict["icon_uploaded"].name, "wb") as f:
-            f.write(input_dict["icon_uploaded"].getbuffer())
-    welcome_image = input_dict["welcome_uploaded"].name if input_dict["welcome_uploaded"] else ""
-    header_image = input_dict["headers_uploaded"].name if input_dict["headers_uploaded"] else ""
-    icon_image = input_dict["icon_uploaded"].name if input_dict["icon_uploaded"] else ""
 
     # Then initialize the project files by replacing placeholders
     initialize_project(
         repo_path=st.session_state["repo_path"],
         project_name=input_dict["project_name"],
         version=input_dict["project_version"],
-        welcome_image=welcome_image,
-        header_image=header_image,
-        icon_image=icon_image,
+        welcome_image_path=welcome_path, 
+        header_image_path=headers_path, 
+        icon_image_path=icon_path,
+        ico_image_path=ico_path, 
+        icns_image_path=icns_path, 
         python_version=input_dict["python_version"],
         jupyterlab_version=input_dict["jupyterlab_version"],
         notebook_version=input_dict["notebook_version"],
