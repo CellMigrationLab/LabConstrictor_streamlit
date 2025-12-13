@@ -355,15 +355,15 @@ def initialize_project(repo_path, project_name, version,
         with open(notebook_launcher_path, "r", encoding="utf-8") as f:
             launcher_data = f.read()
         if icon_image_path:
-            launcher_data = launcher_data.replace("ICON_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/icon.png")
+            launcher_data = launcher_data.replace("ICON_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/{icon_image_path.name}")
         else:
             launcher_data = launcher_data.replace("ICON_IMAGE_PATH", f"")
         if ico_image_path:
-            launcher_data = launcher_data.replace("ICON_ICO_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/icon.ico")
+            launcher_data = launcher_data.replace("ICON_ICO_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/{ico_image_path.name}")
         else:
             launcher_data = launcher_data.replace("ICON_ICO_IMAGE_PATH", f"")
         if icns_image_path:
-            launcher_data = launcher_data.replace("ICON_ICNS_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/icon.icns")
+            launcher_data = launcher_data.replace("ICON_ICNS_IMAGE_PATH", f"BASE_PATH_KEYWORD/{project_name}/{icns_image_path.name}")
         else:
             launcher_data = launcher_data.replace("ICON_ICNS_IMAGE_PATH", f"")
         with open(notebook_launcher_path, "w", encoding="utf-8") as f:
@@ -396,9 +396,9 @@ def initialize_project(repo_path, project_name, version,
 
     # Check if the images paths are provided and not already in the list¨
     image_mappings = [
-        (icon_image_path, f"{project_name}/icon.png"),
-        (ico_image_path, f"{project_name}/icon.ico"),
-        (icns_image_path, f"{project_name}/icon.icns"),
+        (icon_image_path, f"{project_name}/{icon_image_path.name}"),
+        (ico_image_path, f"{project_name}/{ico_image_path.name}"),
+        (icns_image_path, f"{project_name}/{icns_image_path.name}"),
     ]
     for src_path, dest_path in image_mappings:
         if src_path and str(src_path) not in existing_sources and dest_path not in existing_dests:
@@ -456,10 +456,10 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
     # Convert the uploaded icon PNg to ICO format and 
     if input_dict["icon_uploaded"]:
-        icon_path = logo_folder_path / input_dict["icon_uploaded"].name
-        ico_path = logo_folder_path / "icon.ico"
-        icns_path = logo_folder_path / "icon.icns"
-        with open(icon_path, "wb") as f:
+        icon_path = "app" / "logo" / input_dict["icon_uploaded"].name
+        ico_path = "app" / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".ico")
+        icns_path = "app" / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".icns")
+        with open(st.session_state["repo_path"] / icon_path, "wb") as f:
             f.write(input_dict["icon_uploaded"].getbuffer())
 
         # Load the uploaded image
@@ -472,12 +472,12 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
     # First move the uploaded files to the repo path under the app/logo
     if input_dict["welcome_uploaded"]:
-        welcome_path = logo_folder_path / input_dict["welcome_uploaded"].name
-        with open(welcome_path, "wb") as f:
+        welcome_path = "app" / "logo" / input_dict["welcome_uploaded"].name
+        with open(st.session_state["repo_path"] / welcome_path, "wb") as f:
             f.write(input_dict["welcome_uploaded"].getbuffer())
     if input_dict["headers_uploaded"]:
-        headers_path = logo_folder_path / input_dict["headers_uploaded"].name
-        with open(headers_path, "wb") as f:
+        headers_path = "app" / "logo" / input_dict["headers_uploaded"].name
+        with open(st.session_state["repo_path"] / headers_path, "wb") as f:
             f.write(input_dict["headers_uploaded"].getbuffer())
 
     # Then initialize the project files by replacing placeholders
@@ -485,11 +485,11 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         repo_path=st.session_state["repo_path"],
         project_name=input_dict["project_name"],
         version=input_dict["project_version"],
-        welcome_image_path=welcome_path.replace(str(st.session_state["repo_path"].name) + "/", ""),
-        header_image_path=headers_path.replace(str(st.session_state["repo_path"].name) + "/", ""),
-        icon_image_path=icon_path.replace(str(st.session_state["repo_path"].name) + "/", ""),
-        ico_image_path=ico_path.replace(str(st.session_state["repo_path"].name) + "/", ""),
-        icns_image_path=icns_path.replace(str(st.session_state["repo_path"].name) + "/", ""),
+        welcome_image_path=welcome_path,
+        header_image_path=headers_path,
+        icon_image_path=icon_path,
+        ico_image_path=ico_path,
+        icns_image_path=icns_path,
         python_version=input_dict["python_version"],
         jupyterlab_version=input_dict["jupyterlab_version"],
         notebook_version=input_dict["notebook_version"],
