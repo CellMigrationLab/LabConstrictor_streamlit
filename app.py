@@ -415,6 +415,9 @@ def initialize_project(repo_path, project_name, version,
     normalized_items.sort(key=sort_key)
     construct_data["extra_files"] = normalized_items
 
+    # Write back the updated construct.yaml
+    with open(construct_path, "w", encoding="utf-8") as f:
+        yaml.dump(construct_data, f, sort_keys=False)
 
 def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     
@@ -482,11 +485,11 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         repo_path=st.session_state["repo_path"],
         project_name=input_dict["project_name"],
         version=input_dict["project_version"],
-        welcome_image_path=welcome_path, 
-        header_image_path=headers_path, 
-        icon_image_path=icon_path,
-        ico_image_path=ico_path, 
-        icns_image_path=icns_path, 
+        welcome_image_path=welcome_path.replace(str(st.session_state["repo_path"]) + "/", ""),
+        header_image_path=headers_path.replace(str(st.session_state["repo_path"]) + "/", ""),
+        icon_image_path=icon_path.replace(str(st.session_state["repo_path"]) + "/", ""),
+        ico_image_path=ico_path.replace(str(st.session_state["repo_path"]) + "/", ""),
+        icns_image_path=icns_path.replace(str(st.session_state["repo_path"]) + "/", ""),
         python_version=input_dict["python_version"],
         jupyterlab_version=input_dict["jupyterlab_version"],
         notebook_version=input_dict["notebook_version"],
