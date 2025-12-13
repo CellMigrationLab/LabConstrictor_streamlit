@@ -456,9 +456,9 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
     # Convert the uploaded icon PNg to ICO format and 
     if input_dict["icon_uploaded"]:
-        icon_path = "app" / "logo" / input_dict["icon_uploaded"].name
-        ico_path = "app" / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".ico")
-        icns_path = "app" / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".icns")
+        icon_path = Path("app") / "logo" / input_dict["icon_uploaded"].name
+        ico_path = Path("app") / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".ico")
+        icns_path = Path("app") / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".icns")
         with open(st.session_state["repo_path"] / icon_path, "wb") as f:
             f.write(input_dict["icon_uploaded"].getbuffer())
 
@@ -472,11 +472,11 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
     # First move the uploaded files to the repo path under the app/logo
     if input_dict["welcome_uploaded"]:
-        welcome_path = "app" / "logo" / input_dict["welcome_uploaded"].name
+        welcome_path = Path("app") / "logo" / input_dict["welcome_uploaded"].name
         with open(st.session_state["repo_path"] / welcome_path, "wb") as f:
             f.write(input_dict["welcome_uploaded"].getbuffer())
     if input_dict["headers_uploaded"]:
-        headers_path = "app" / "logo" / input_dict["headers_uploaded"].name
+        headers_path = Path("app") / "logo" / input_dict["headers_uploaded"].name
         with open(st.session_state["repo_path"] / headers_path, "wb") as f:
             f.write(input_dict["headers_uploaded"].getbuffer())
 
