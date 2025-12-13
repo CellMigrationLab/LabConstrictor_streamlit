@@ -465,10 +465,10 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         # Load the uploaded image
         ico_logo = Image.open(input_dict["icon_uploaded"])
         # Save as ICO
-        ico_logo.save(ico_path, 
+        ico_logo.save(st.session_state["repo_path"] / ico_path, 
                   format='ICO', sizes=[(16,16), (32,32), (64,64), (128,128), (256,256)])
         # Save as ICNS
-        create_icns(ico_logo, icns_path)
+        create_icns(ico_logo, st.session_state["repo_path"] / icns_path)
 
     # First move the uploaded files to the repo path under the app/logo
     if input_dict["welcome_uploaded"]:
