@@ -320,6 +320,7 @@ def initialize_project(repo_path, project_name, version,
         },
         "VERSION_NUMBER": {
             "construct.yaml": version,
+            "app/bash_bat_scripts/post_install.bat": version,
         },
         "WELCOME_IMAGE": {
             "construct.yaml": welcome_image_path,
