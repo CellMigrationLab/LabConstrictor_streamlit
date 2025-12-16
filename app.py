@@ -301,7 +301,8 @@ def initialize_project(repo_path, project_name, version,
                        welcome_image_path, header_image_path, icon_image_path,
                        ico_image_path, icns_image_path, 
                        python_version, jupyterlab_version, 
-                       notebook_version, matplotlib_version):
+                       notebook_version, matplotlib_version,
+                       github_owner):
     proyectname_lower = project_name.lower()
 
     conversion_dict = {
@@ -343,6 +344,9 @@ def initialize_project(repo_path, project_name, version,
         "MATPLOTLIB_VERSION": {
             "environment.yaml": matplotlib_version,
         },
+        "GITHUB_OWNER": {
+            "app/bash_bat_scripts/post_install.bat": github_owner,
+        }
     }
 
     # Replace placeholders in files
@@ -495,6 +499,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         jupyterlab_version=input_dict["jupyterlab_version"],
         notebook_version=input_dict["notebook_version"],
         matplotlib_version=input_dict["matplotlib_version"],
+        github_owner=github_owner,
     )
 
     # Also, check if there is a README.md file and if so remove it and create a new one with the project name
