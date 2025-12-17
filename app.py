@@ -261,6 +261,42 @@ def replace_in_file(file_path, old, new):
         file.write(content)
 
 
+def capture_yaml_key_lines(yaml_text: str, key: str):
+    """Return all lines whose trimmed content starts with '<key>:'."""
+    prefix = f"{key}:"
+    captured = []
+    for line in yaml_text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith(prefix):
+            indent = line[: len(line) - len(stripped)]
+            captured.append(f"{indent}{stripped}")
+    return captured
+
+
+def restore_yaml_duplicate_keys(serialized_text: str, key: str, preserved_lines):
+    """Replace the serialized '<key>:' line with the preserved lines (i.e., duplicates)."""
+    if not preserved_lines:
+        return serialized_text
+    key_prefix = f"{key}:"
+    output_lines = []
+    inserted = False
+    for line in serialized_text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith(key_prefix):
+            if not inserted:
+                output_lines.extend(preserved_lines)
+                inserted = True
+            continue
+        output_lines.append(line)
+
+    if not inserted:
+        output_lines.extend(preserved_lines)
+
+    if serialized_text.endswith("\n"):
+        return "\n".join(output_lines) + "\n"
+    return "\n".join(output_lines)
+
+
 def create_icns(img, output_path):
     # Function taken from: https://github.com/jojomondag/PNG_to_ico_to_icns_converter/blob/main/PNG_to_ico_to_icns_converter.py
     # Define the icon types and sizes
@@ -309,6 +345,9 @@ def initialize_project(repo_path, project_name, version,
         "LOWER_PROJ_NAME": {
             "environment.yaml": proyectname_lower,
         },
+        "UNDERSCORED_PROJECT_NAME": {
+            "construct.yaml": project_name.replace(" ", "_")
+        },
         "PROJECT_NAME": {
             "construct.yaml": project_name,
             ".tools/templates/Welcome_template.ipynb": project_name,
@@ -354,6 +393,7 @@ def initialize_project(repo_path, project_name, version,
         for file_path, replacement in files.items():
             replace_in_file(repo_path / file_path, placeholder, replacement)
 
+
     # Update the notebook launcher JSON file to set the icons if needed
     notebook_launcher_path = repo_path / "app" / "menuinst" / "notebook_launcher.json"
     if notebook_launcher_path.exists():
@@ -377,12 +417,26 @@ def initialize_project(repo_path, project_name, version,
     # Update the construct.yaml extra_files to include the images if they were provided
     # Read the construct.yaml to check if images need to be set
     construct_path = repo_path / "construct.yaml"
-    construct_data = yaml.safe_load(construct_path.read_text(encoding="utf-8"))
+    construct_raw_text = construct_path.read_text(encoding="utf-8")
+    post_install_lines = capture_yaml_key_lines(construct_raw_text, "post_install")
+    pre_uninstall_lines = capture_yaml_key_lines(construct_raw_text, "pre_uninstall")
+    construct_data = yaml.safe_load(construct_raw_text)
+    if construct_data is None:
+        construct_data = {}
     extra_files = construct_data.get("extra_files")
     if extra_files is None:
         extra_files = []
         construct_data["extra_files"] = extra_files
     
+
+    # Check if the welcome, header, icon images were provided and in case they were not, set them to empty in the construct.yaml
+    if not welcome_image_path:
+        construct_data.pop("welcome_image", None)
+    if not header_image_path:
+        construct_data.pop("header_image", None)
+    if not icon_image_path:
+        construct_data.pop("icon_image", None)
+
     # Normalize existing entries into a dict for quick lookup
     existing_sources = set()
     existing_dests = set()
@@ -400,15 +454,14 @@ def initialize_project(repo_path, project_name, version,
             normalized_items.append(item)
 
     # Check if the images paths are provided and not already in the list¨
-    image_mappings = [
-        (icon_image_path, f"{project_name}/{icon_image_path.name}"),
-        (ico_image_path, f"{project_name}/{ico_image_path.name}"),
-        (icns_image_path, f"{project_name}/{icns_image_path.name}"),
-    ]
-    for src_path, dest_path in image_mappings:
-        if src_path and str(src_path) not in existing_sources and dest_path not in existing_dests:
-            normalized_items.append({str(src_path): dest_path})
+    image_mappings = [ icon_image_path, ico_image_path, icns_image_path ]
 
+    for src_path in image_mappings:
+        if src_path:
+            dest_path = f"{project_name}/{src_path.name}"
+            if src_path and str(src_path) not in existing_sources and dest_path not in existing_dests:
+                normalized_items.append({str(src_path): dest_path})
+                
     # Optionally sort entries (dicts by their single key) for determinism
     def sort_key(item):
         if isinstance(item, dict):
@@ -421,8 +474,14 @@ def initialize_project(repo_path, project_name, version,
     construct_data["extra_files"] = normalized_items
 
     # Write back the updated construct.yaml
-    with open(construct_path, "w", encoding="utf-8") as f:
-        yaml.dump(construct_data, f, sort_keys=False)
+    construct_serialized = yaml.dump(construct_data, sort_keys=False)
+    construct_serialized = restore_yaml_duplicate_keys(
+        construct_serialized, "post_install", post_install_lines
+    )
+    construct_serialized = restore_yaml_duplicate_keys(
+        construct_serialized, "pre_uninstall", pre_uninstall_lines
+    )
+    construct_path.write_text(construct_serialized, encoding="utf-8")
 
 def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     
