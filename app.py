@@ -346,7 +346,9 @@ def initialize_project(repo_path, project_name, version,
             "environment.yaml": proyectname_lower,
         },
         "UNDERSCORED_PROJECT_NAME": {
-            "construct.yaml": project_name.replace(" ", "_")
+            "construct.yaml": project_name.replace(" ", "_"),
+            "app/bash_bat_scripts/pre_uninstall.bat": project_name.replace(" ", "_"),
+            "app/bash_bat_scripts/post_install.bat": project_name.replace(" ", "_"),
         },
         "PROJECT_NAME": {
             "construct.yaml": project_name,
