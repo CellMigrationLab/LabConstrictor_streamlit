@@ -563,10 +563,13 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         github_owner=github_owner,
     )
 
-    # Also, check if there is a README.md file and if so remove it and create a new one with the project name
+    # Also, check if there is a README.md file and if so move it to the '.tools/docs' folder and create a new one with the project name
     readme_path = st.session_state["repo_path"] / "README.md"
     if readme_path.exists():
-        readme_path.unlink()
+        docs_folder = st.session_state["repo_path"] / ".tools" / "docs"
+        docs_folder.mkdir(parents=True, exist_ok=True)
+        # Move the existing README.md to docs folder
+        shutil.move(str(readme_path), str(docs_folder / "README.md"))
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(f"# {input_dict['project_name']}\n\n")
         f.write("This repository was initialized using LabConstrictor.\n")
