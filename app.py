@@ -20,46 +20,12 @@ st.set_page_config(page_title="LabConstrictor - Repository initializer",
                    layout="wide",
                    )
 
-PYTHON_VERSIONS = ["3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
-PYTHON_COMPATIBILITY_MATRIX = {
-    "3.13": {
-        "jupyterlab": ["4.2", "4.1", "4.0"],
-        "notebook": ["7.2", "7.1"],
-        "matplotlib": ["3.9", "3.8"],
-    },
-    "3.12": {
-        "jupyterlab": ["4.1", "4.0", "3.6"],
-        "notebook": ["7.1", "7.0", "6.5"],
-        "matplotlib": ["3.9", "3.8", "3.7"],
-    },
-    "3.11": {
-        "jupyterlab": ["4.0", "3.6", "3.5"],
-        "notebook": ["7.0", "6.5", "6.4"],
-        "matplotlib": ["3.8", "3.7", "3.6"],
-    },
-    "3.10": {
-        "jupyterlab": ["3.6", "3.5", "3.4"],
-        "notebook": ["6.5", "6.4", "6.3"],
-        "matplotlib": ["3.7", "3.6", "3.5"],
-    },
-    "3.9": {
-        "jupyterlab": ["3.5", "3.4"],
-        "notebook": ["6.4", "6.3", "6.2"],
-        "matplotlib": ["3.6", "3.5", "3.4"],
-    },
-    "3.8": {
-        "jupyterlab": ["3.4", "3.3"],
-        "notebook": ["6.3", "6.2", "6.1"],
-        "matplotlib": ["3.5", "3.4", "3.3"],
-    },
-}
 MAX_FILE_SIZE_MB = 25
 
 if "ready_for_pr" not in st.session_state:
     st.session_state["ready_for_pr"] = False
 if "github_repo_url" not in st.session_state:
     st.session_state["github_repo_url"] = ""
-
 
 def validate_submission(submitted_info):
     """Ensure required inputs exist and meet basic quality checks."""
@@ -77,11 +43,6 @@ def validate_submission(submitted_info):
         if not re.match(semver_pattern, project_version):
             errors.append("Project version must follow semantic versioning (e.g., 1.0.0).")
 
-    
-    python_version = submitted_info.get("python_version", "").strip()
-    if python_version not in PYTHON_VERSIONS:
-        errors.append("Please select a valid Python version.")
-
     if uploaded_icon := submitted_info.get("icon_uploaded"):
         if uploaded_icon.size > MAX_FILE_SIZE_MB * 1024 * 1024:
             errors.append(f"Icon file '{uploaded_icon.name}' exceeds {MAX_FILE_SIZE_MB} MB limit.")
@@ -98,12 +59,6 @@ def validate_submission(submitted_info):
         st.session_state["ready_for_pr"] = False
 
     return errors
-
-
-def get_tool_version_options(python_version: str):
-    return PYTHON_COMPATIBILITY_MATRIX.get(
-        python_version, PYTHON_COMPATIBILITY_MATRIX[PYTHON_VERSIONS[0]]
-    )
 
 
 def reset_tool_versions():
@@ -336,8 +291,6 @@ def create_icns(img, output_path):
 def initialize_project(repo_path, project_name, version, 
                        welcome_image_path, header_image_path, icon_image_path,
                        ico_image_path, icns_image_path, 
-                       python_version, jupyterlab_version, 
-                       notebook_version, matplotlib_version,
                        github_owner):
     proyectname_lower = project_name.lower()
 
@@ -372,18 +325,6 @@ def initialize_project(repo_path, project_name, version,
         },
         "ICON_IMAGE": {
             "construct.yaml": icon_image_path,
-        },
-        "PYTHON_VERSION": {
-            "environment.yaml": python_version,
-        },
-        "JUPYTERLAB_VERSION": {
-            "environment.yaml": jupyterlab_version,
-        },
-        "NOTEBOOK_VERSION": {
-            "environment.yaml": notebook_version,
-        },
-        "MATPLOTLIB_VERSION": {
-            "environment.yaml": matplotlib_version,
         },
         "GITHUB_OWNER": {
             "app/bash_bat_scripts/post_install.bat": github_owner,
@@ -556,10 +497,6 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         icon_image_path=icon_path,
         ico_image_path=ico_path,
         icns_image_path=icns_path,
-        python_version=input_dict["python_version"],
-        jupyterlab_version=input_dict["jupyterlab_version"],
-        notebook_version=input_dict["notebook_version"],
-        matplotlib_version=input_dict["matplotlib_version"],
         github_owner=github_owner,
     )
 
@@ -608,7 +545,7 @@ with st.sidebar:
 
 st.title("LabConstrictor - Repository initializer")
 st.caption("Once you have created a GitHub repository using the LabConstrictor template, you can use this form to initialize it with your project details.")
-st.caption("Fill in the project name, version, select the Python environment, and optionally upload images to customize your executable interface.")
+st.caption("Fill in the project name, version, and optionally upload images to customize your executable interface.")
 st.caption("Then, provide your GitHub repository URL and a Personal Access Token to create a pull request with the configuration changes.")
 st.caption("Once you submit the form, please follow the instructions described here: ...")
 
@@ -618,52 +555,6 @@ with runtime_container:
     st.subheader("*Project basic info")
     project_name = st.text_input("Name of the project", placeholder="Cool Analytics API")
     project_version = st.text_input("Initial project version", placeholder="0.0.1", help="Specify the initial version of the project.")
-
-    ##########################################################
-    st.subheader("*Python environment")
-    python_col, jupyterlab_col, notebook_col, matplotlib_col = st.columns(4, gap="small")
-    with python_col:
-        python_version = st.selectbox(
-            "Python version",
-            PYTHON_VERSIONS,
-            index=1,
-            key="python_version_choice",
-        )
-    previous_python_version = st.session_state.get("_prev_python_version")
-    if previous_python_version != python_version:
-        reset_tool_versions()
-        st.session_state["_prev_python_version"] = python_version
-    tool_version_options = get_tool_version_options(python_version)
-    jupyterlab_options = tool_version_options["jupyterlab"]
-    notebook_options = tool_version_options["notebook"]
-    matplotlib_options = tool_version_options["matplotlib"]
-    if st.session_state.get("jupyterlab_version") not in jupyterlab_options:
-        st.session_state["jupyterlab_version"] = jupyterlab_options[0]
-    if st.session_state.get("notebook_version") not in notebook_options:
-        st.session_state["notebook_version"] = notebook_options[0]
-    if st.session_state.get("matplotlib_version") not in matplotlib_options:
-        st.session_state["matplotlib_version"] = matplotlib_options[0]
-    with jupyterlab_col:
-        jupyterlab_version = st.selectbox(
-            "JupyterLab release",
-            jupyterlab_options,
-            help="Select the JupyterLab version compatible with your Python pick.",
-            key="jupyterlab_version",
-        )
-    with notebook_col:
-        notebook_version = st.selectbox(
-            "Notebook release",
-            notebook_options,
-            help="Notebook versions are filtered to what works with the Python selection.",
-            key="notebook_version",
-        )
-    with matplotlib_col:
-        matplotlib_version = st.selectbox(
-            "Matplotlib release",
-            matplotlib_options,
-            help="Pick the Matplotlib version aligned with the selected Python runtime.",
-            key="matplotlib_version",
-        )
 
     ##########################################################
     st.subheader("(Optional) Upload project images")
@@ -692,10 +583,6 @@ if submitted:
     st.session_state["submitted_info"] = {
         "project_name": project_name,
         "project_version": project_version,
-        "python_version": python_version,
-        "jupyterlab_version": jupyterlab_version,
-        "notebook_version": notebook_version,
-        "matplotlib_version": matplotlib_version,
         "icon_uploaded": uploaded_icon,
         "welcome_uploaded": uploaded_welcome,
         "headers_uploaded": uploaded_headers,    
@@ -708,8 +595,7 @@ if submitted:
         st.session_state["ready_for_pr"] = False
     else:
         st.success(
-            f"Project '{project_name.strip()}' targeting Python {python_version} "
-            "was submitted successfully!"
+            f"Project '{project_name.strip()}' was submitted successfully!"
         )
 
 if st.session_state.get("ready_for_pr"):
