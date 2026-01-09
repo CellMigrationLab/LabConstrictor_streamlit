@@ -27,6 +27,18 @@ if "ready_for_pr" not in st.session_state:
 if "github_repo_url" not in st.session_state:
     st.session_state["github_repo_url"] = ""
 
+VIEW_WELCOME = "welcome"
+VIEW_INITIALIZE = "initialize"
+VIEW_UPDATE = "update"
+
+if "active_view" not in st.session_state:
+    st.session_state["active_view"] = VIEW_WELCOME
+
+
+def set_active_view(view_name: str):
+    st.session_state["active_view"] = view_name
+
+
 def validate_submission(submitted_info):
     """Ensure required inputs exist and meet basic quality checks."""
     errors = []
@@ -456,70 +468,87 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
     st.write("🛠 Initializing project files...")
 
-    logo_folder_path = st.session_state["repo_path"] / "app" / "logo"
-    logo_folder_path.mkdir(parents=True, exist_ok=True)
+    if input_dict["submission_mode"] == "initialize":
+        logo_folder_path = st.session_state["repo_path"] / "app" / "logo"
+        logo_folder_path.mkdir(parents=True, exist_ok=True)
 
-    icon_path, ico_path, icns_path, welcome_path, headers_path = "", "", "", "", ""
+        icon_path, ico_path, icns_path, welcome_path, headers_path = "", "", "", "", ""
 
-    # Convert the uploaded icon PNg to ICO format and 
-    if input_dict["icon_uploaded"]:
-        icon_path = Path("app") / "logo" / input_dict["icon_uploaded"].name
-        ico_path = Path("app") / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".ico")
-        icns_path = Path("app") / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".icns")
-        with open(st.session_state["repo_path"] / icon_path, "wb") as f:
-            f.write(input_dict["icon_uploaded"].getbuffer())
+        # Convert the uploaded icon PNg to ICO format and 
+        if input_dict["icon_uploaded"]:
+            icon_path = Path("app") / "logo" / input_dict["icon_uploaded"].name
+            ico_path = Path("app") / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".ico")
+            icns_path = Path("app") / "logo" / input_dict["icon_uploaded"].name.replace(".png", ".icns")
+            with open(st.session_state["repo_path"] / icon_path, "wb") as f:
+                f.write(input_dict["icon_uploaded"].getbuffer())
 
-        # Load the uploaded image
-        ico_logo = Image.open(input_dict["icon_uploaded"])
-        # Save as ICO
-        ico_logo.save(st.session_state["repo_path"] / ico_path, 
-                  format='ICO', sizes=[(16,16), (32,32), (64,64), (128,128), (256,256)])
-        # Save as ICNS
-        create_icns(ico_logo, st.session_state["repo_path"] / icns_path)
+            # Load the uploaded image
+            ico_logo = Image.open(input_dict["icon_uploaded"])
+            # Save as ICO
+            ico_logo.save(st.session_state["repo_path"] / ico_path, 
+                    format='ICO', sizes=[(16,16), (32,32), (64,64), (128,128), (256,256)])
+            # Save as ICNS
+            create_icns(ico_logo, st.session_state["repo_path"] / icns_path)
 
-    # First move the uploaded files to the repo path under the app/logo
-    if input_dict["welcome_uploaded"]:
-        welcome_path = Path("app") / "logo" / input_dict["welcome_uploaded"].name
-        with open(st.session_state["repo_path"] / welcome_path, "wb") as f:
-            f.write(input_dict["welcome_uploaded"].getbuffer())
-    if input_dict["headers_uploaded"]:
-        headers_path = Path("app") / "logo" / input_dict["headers_uploaded"].name
-        with open(st.session_state["repo_path"] / headers_path, "wb") as f:
-            f.write(input_dict["headers_uploaded"].getbuffer())
+        # First move the uploaded files to the repo path under the app/logo
+        if input_dict["welcome_uploaded"]:
+            welcome_path = Path("app") / "logo" / input_dict["welcome_uploaded"].name
+            with open(st.session_state["repo_path"] / welcome_path, "wb") as f:
+                f.write(input_dict["welcome_uploaded"].getbuffer())
+        if input_dict["headers_uploaded"]:
+            headers_path = Path("app") / "logo" / input_dict["headers_uploaded"].name
+            with open(st.session_state["repo_path"] / headers_path, "wb") as f:
+                f.write(input_dict["headers_uploaded"].getbuffer())
 
-    # Then initialize the project files by replacing placeholders
-    initialize_project(
-        repo_path=st.session_state["repo_path"],
-        project_name=input_dict["project_name"],
-        version=input_dict["project_version"],
-        welcome_image_path=welcome_path,
-        header_image_path=headers_path,
-        icon_image_path=icon_path,
-        ico_image_path=ico_path,
-        icns_image_path=icns_path,
-        github_owner=github_owner,
-    )
+        # Then initialize the project files by replacing placeholders
+        initialize_project(
+            repo_path=st.session_state["repo_path"],
+            project_name=input_dict["project_name"],
+            version=input_dict["project_version"],
+            welcome_image_path=welcome_path,
+            header_image_path=headers_path,
+            icon_image_path=icon_path,
+            ico_image_path=ico_path,
+            icns_image_path=icns_path,
+            github_owner=github_owner,
+        )
 
-    # Also, check if there is a README.md file and if so move it to the '.tools/docs' folder and create a new one with the project name
-    readme_path = st.session_state["repo_path"] / "README.md"
-    if readme_path.exists():
-        docs_folder = st.session_state["repo_path"] / ".tools" / "docs"
-        docs_folder.mkdir(parents=True, exist_ok=True)
-        # Move the existing README.md to docs folder
-        shutil.move(str(readme_path), str(docs_folder / "README.md"))
-    with open(readme_path, "w", encoding="utf-8") as f:
-        f.write(f"# {input_dict['project_name']}\n\n")
-        f.write("This repository was initialized using LabConstrictor.\n")
-        f.write("Please, feel free to customize this README file.\n")
+        # Also, check if there is a README.md file and if so move it to the '.tools/docs' folder and create a new one with the project name
+        readme_path = st.session_state["repo_path"] / "README.md"
+        if readme_path.exists():
+            docs_folder = st.session_state["repo_path"] / ".tools" / "docs"
+            docs_folder.mkdir(parents=True, exist_ok=True)
+            # Move the existing README.md to docs folder
+            shutil.move(str(readme_path), str(docs_folder / "README.md"))
+        with open(readme_path, "w", encoding="utf-8") as f:
+            f.write(f"# {input_dict['project_name']}\n\n")
+            f.write("This repository was initialized using LabConstrictor.\n")
+            f.write("Please, feel free to customize this README file.\n")
 
-    # Create a pull request using GitHub CLI
-    pr_title = f"Add submission for {input_dict['project_name']}"
-    pr_body = f"This PR adds the submission for the project {input_dict['project_name']} v{input_dict['project_version']}."
-    
+        # Create a pull request using GitHub CLI
+        pr_title = f"Add submission for {input_dict['project_name']}"
+        pr_body = f"This PR adds the submission for the project {input_dict['project_name']} v{input_dict['project_version']}."
+        commit_message = f"Add initialization for {input_dict['project_name']} v{input_dict['project_version']}"
+
+    elif input_dict["submission_mode"] == "update":
+        
+        # Create the notebooks folder if it does not exist
+        notebook_path = st.session_state["repo_path"] / "notebooks" / input_dict["notebook_uploaded"].name.replace(".ipynb", "")
+        notebook_path.mkdir(parents=True, exist_ok=True)
+
+        with open(notebook_path / input_dict["notebook_uploaded"].name, "wb") as f:
+            f.write(input_dict["notebook_uploaded"].getbuffer())
+        with open(notebook_path / input_dict["requirements_uploaded"].name, "wb") as f:
+            f.write(input_dict["requirements_uploaded"].getbuffer())
+
+        pr_title = f"Upload updated notebook {input_dict['notebook_uploaded'].name}"
+        pr_body = f"This PR updates the notebook {input_dict['notebook_uploaded'].name} and the requirements file {input_dict['requirements_uploaded'].name}."
+        commit_message = f"Update notebook {input_dict['notebook_uploaded'].name} and requirements"
+
     push_and_create_pr(
         folder=st.session_state["repo_path"],
         branch_prefix="submission",
-        commit_message=f"Add submission for {input_dict['project_name']}",
+        commit_message=commit_message,
         pr_title=pr_title,
         pr_body=pr_body,
         github_repo_url=repo_url,
@@ -533,93 +562,232 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
     st.write("🏆 Finished!")
 
-with st.sidebar:
-    st.header("Submission tips")
-    st.markdown(
-        """
+
+
+def render_sidebar_content(current_view: str):
+    with st.sidebar:
+        if current_view == VIEW_INITIALIZE:
+            st.header("Submission tips")
+            st.markdown(
+                """
 - Zip large folders before uploading.
 - Pick the interpreter version that matches your `pyproject.toml` or `runtime.txt`.
 - Keep uploads below 25 MB each to avoid browser time-outs.
-        """
+                """
+            )
+        elif current_view == VIEW_UPDATE:
+            st.header("Update tips")
+            st.info(
+                "Update workflow details will live here soon. Use the back button "
+                "if you want to switch actions."
+            )
+        else:
+            st.header("Get started")
+            st.write("Pick what you would like to do on the main panel to continue.")
+            st.markdown(
+                """
+- Initialize a brand new LabConstrictor repository.
+- Or prepare to update an existing deployment (coming soon).
+                """
+            )
+
+
+def render_welcome_view():
+    st.title("Welcome to LabConstrictor!")
+    st.caption("Choose the workflow that best matches what you need today.")
+    st.write("Select one of the options below to continue.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Initialize a project")
+        st.write("Configure a freshly created LabConstrictor repository.")
+        st.button(
+            "Start initialization",
+            use_container_width=True,
+            on_click=set_active_view,
+            args=(VIEW_INITIALIZE,),
+        )
+    with col2:
+        st.subheader("Update a project")
+        st.write("Upload a notebook and a requirements.yaml file to update an existing project.")
+        st.button(
+            "Go to update flow",
+            use_container_width=True,
+            on_click=set_active_view,
+            args=(VIEW_UPDATE,),
+        )
+
+
+def render_initialize_view():
+    st.button(
+        "<- Back to welcome",
+        key="back_to_welcome_init",
+        on_click=set_active_view,
+        args=(VIEW_WELCOME,),
     )
 
-st.title("LabConstrictor - Repository initializer")
-st.caption("Once you have created a GitHub repository using the LabConstrictor template, you can use this form to initialize it with your project details.")
-st.caption("Fill in the project name, version, and optionally upload images to customize your executable interface.")
-st.caption("Then, provide your GitHub repository URL and a Personal Access Token to create a pull request with the configuration changes.")
-st.caption("Once you submit the form, please follow the instructions described here: ...")
+    st.title("LabConstrictor - Repository initializer")
+    st.caption("Once you have created a GitHub repository using the LabConstrictor template, you can use this form to initialize it with your project details.")
+    st.caption("Fill in the project name, version, and optionally upload images to customize your executable interface.")
+    st.caption("Then, provide your GitHub repository URL and a Personal Access Token to create a pull request with the configuration changes.")
+    st.caption("Once you submit the form, please follow the instructions described here: ...")
 
-runtime_container = st.container()
-with runtime_container:
-    ##########################################################
-    st.subheader("*Project basic info")
-    project_name = st.text_input("Name of the project", placeholder="Cool Analytics API")
-    project_version = st.text_input("Initial project version", placeholder="0.0.1", help="Specify the initial version of the project.")
+    runtime_container = st.container()
+    with runtime_container:
+        st.subheader("*Project basic info")
+        project_name = st.text_input("Name of the project", placeholder="Cool Analytics API")
+        project_version = st.text_input("Initial project version", placeholder="0.0.1", help="Specify the initial version of the project.")
 
-    ##########################################################
-    st.subheader("(Optional) Upload project images")
-    uploaded_icon = st.file_uploader(
-        "Project icon image (resized to 256 x 256 px)",
+        st.subheader("(Optional) Upload project images")
+        uploaded_icon = st.file_uploader(
+            "Project icon image (resized to 256 x 256 px)",
+            accept_multiple_files=False,
+            type="png",
+            help=f"",
+        )
+        uploaded_welcome = st.file_uploader(
+            "Project welcome image (resized to 164 x 314 px)",
+            accept_multiple_files=False,
+            type="png",
+            help=f"",
+        )
+        uploaded_headers = st.file_uploader(
+            "Project headers image (resized to 150 x 57 px)",
+            accept_multiple_files=False,
+            type="png",
+            help=f"",
+        )
+
+        submitted = st.button("Validate submission", use_container_width=True)
+
+    if submitted:
+        st.session_state["submitted_info"] = {
+            "submission_mode": "initialize",
+            "project_name": project_name,
+            "project_version": project_version,
+            "icon_uploaded": uploaded_icon,
+            "welcome_uploaded": uploaded_welcome,
+            "headers_uploaded": uploaded_headers,    
+        }
+
+        validation_errors = validate_submission(st.session_state["submitted_info"])
+        if validation_errors:
+            validation_error_list_text = ['\n - ' + e for e in validation_errors]
+            st.error(f"Please fix the following before resubmitting: {''.join(validation_error_list_text)}")
+            st.session_state["ready_for_pr"] = False
+        else:
+            st.success(
+                f"Project '{project_name.strip()}' was submitted successfully!"
+            )
+
+    if st.session_state.get("ready_for_pr"):
+        st.subheader("Optional: GitHub follow-up")
+        repo_url = st.text_input(
+            "GitHub repository URL",
+            key="github_repo_url",
+            placeholder="https://github.com/org/repo",
+            help="Paste the repository where the pull request should be opened.",
+        )
+        token = st.text_input("Personal Access Token", 
+                              key="pat",
+                              type="password",
+                              help="Provide a GitHub Personal Access Token with repo permissions.",
+                              )
+        create_pr = st.button(
+            "Create pull request",
+            disabled=not repo_url.strip(),
+        )
+
+        if create_pr:
+            with st.status("Creating pull request...", expanded=True) as status:
+                enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                # try:
+                #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                # except Exception as e:
+                #     status.error(f"Failed to create PR:\n{e}")
+
+
+def render_update_view():
+    st.button(
+        "<- Back to welcome",
+        key="back_to_welcome_update",
+        on_click=set_active_view,
+        args=(VIEW_WELCOME,),
+    )
+    st.title("Update a notebook on an existing project")
+    st.caption("Upload a notebook and a requirements.yaml file.")
+    st.caption("Then, once they are validated,provide your GitHub repository URL and a Personal Access Token to create a pull request with the configuration changes.")
+    st.caption("Once you submit the form, please follow the instructions described here: ...")
+    uploaded_notebook = st.file_uploader(
+        "Jupyter Notebook file (.ipynb)",
         accept_multiple_files=False,
-        type="png",
+        type="ipynb",
         help=f"",
     )
-    uploaded_welcome = st.file_uploader(
-        "Project welcome image (resized to 164 x 314 px)",
+    uploaded_requirements = st.file_uploader(
+        "Requirements yaml file (requirements.yaml)",
         accept_multiple_files=False,
-        type="png",
-        help=f"",
-    )
-    uploaded_headers = st.file_uploader(
-        "Project headers image (resized to 150 x 57 px)",
-        accept_multiple_files=False,
-        type="png",
-        help=f"",
+        type="yaml",
+        help=f"This file can be created using the Template code cell from LabConstrictor.",
     )
 
     submitted = st.button("Validate submission", use_container_width=True)
+    
+    if submitted:
+        st.session_state["submitted_info"] = {
+            "submission_mode": "update",
+            "notebook_uploaded": uploaded_notebook,
+            "requirements_uploaded": uploaded_requirements,
+        }
+        if not uploaded_notebook:
+            st.error("Please upload a Jupyter Notebook file.")
+            st.session_state["ready_for_pr"] = False
+        elif not uploaded_requirements:
+            st.error("Please upload a requirements yaml file.")
+            st.session_state["ready_for_pr"] = False
+        else:
+            if uploaded_requirements.name != "requirements.yaml":
+                st.error("The requirements file must be named 'requirements.yaml'.")
+                st.session_state["ready_for_pr"] = False
+            else:
+                st.session_state["ready_for_pr"] = True
+                st.success(
+                    f"Notebook '{uploaded_notebook.name}' and requirements '{uploaded_requirements.name}' were submitted successfully!"
+                )
 
-if submitted:
-    st.session_state["submitted_info"] = {
-        "project_name": project_name,
-        "project_version": project_version,
-        "icon_uploaded": uploaded_icon,
-        "welcome_uploaded": uploaded_welcome,
-        "headers_uploaded": uploaded_headers,    
-    }
-
-    validation_errors = validate_submission(st.session_state["submitted_info"])
-    if validation_errors:
-        validation_error_list_text = ['\n - ' + e for e in validation_errors]
-        st.error(f"Please fix the following before resubmitting: {''.join(validation_error_list_text)}")
-        st.session_state["ready_for_pr"] = False
-    else:
-        st.success(
-            f"Project '{project_name.strip()}' was submitted successfully!"
+    if st.session_state.get("ready_for_pr"):
+        st.success("Update submission validated successfully!")
+        repo_url = st.text_input(
+            "GitHub repository URL",
+            key="github_repo_url",
+            placeholder="https://github.com/org/repo",
+            help="Paste the repository where the pull request should be opened.",
+        )
+        token = st.text_input("Personal Access Token", 
+                              key="pat",
+                              type="password",
+                              help="Provide a GitHub Personal Access Token with repo permissions.",
+                              )
+        create_pr = st.button(
+            "Create pull request",
+            disabled=not repo_url.strip(),
         )
 
-if st.session_state.get("ready_for_pr"):
-    st.subheader("Optional: GitHub follow-up")
-    repo_url = st.text_input(
-        "GitHub repository URL",
-        key="github_repo_url",
-        placeholder="https://github.com/org/repo",
-        help="Paste the repository where the pull request should be opened.",
-    )
-    token = st.text_input("Personal Access Token", 
-                          key="pat",
-                          type="password",
-                          help="Provide a GitHub Personal Access Token with repo permissions.",
-                          )
-    create_pr = st.button(
-        "Create pull request",
-        disabled=not repo_url.strip(),
-    )
+        if create_pr:
 
-    if create_pr:
-        with st.status("Creating pull request...", expanded=True) as status:
-            enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-            # try:
-            #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-            # except Exception as e:
-            #     status.error(f"❌ Failed to create PR:\n{e}")
+            with st.status("Creating pull request...", expanded=True) as status:
+                enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                # try:
+                #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                # except Exception as e:
+                #     status.error(f"Failed to create PR:\n{e}")
+
+current_view = st.session_state["active_view"]
+render_sidebar_content(current_view)
+
+if current_view == VIEW_INITIALIZE:
+    render_initialize_view()
+elif current_view == VIEW_UPDATE:
+    render_update_view()
+else:
+    render_welcome_view()
