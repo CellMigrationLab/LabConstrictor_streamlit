@@ -303,12 +303,13 @@ def create_icns(img, output_path):
 def initialize_project(repo_path, project_name, version, 
                        welcome_image_path, header_image_path, icon_image_path,
                        ico_image_path, icns_image_path, 
-                       github_owner):
+                       github_owner, github_repo_name):
     proyectname_lower = project_name.lower()
 
     conversion_dict = {
         "LOWER_PROJ_NAME": {
             "environment.yaml": proyectname_lower,
+            ".tools/templates/download_executable_template.md": proyectname_lower,
         },
         "UNDERSCORED_PROJECT_NAME": {
             "construct.yaml": project_name.replace(" ", "_"),
@@ -324,10 +325,12 @@ def initialize_project(repo_path, project_name, version,
             "app/bash_bat_scripts/pre_uninstall.bat": project_name,
             "app/bash_bat_scripts/pre_uninstall.sh": project_name,
             "app/bash_bat_scripts/uninstall.sh": project_name,
+            ".tools/templates/download_executable_template.md": project_name,
         },
         "VERSION_NUMBER": {
             "construct.yaml": version,
             "app/bash_bat_scripts/post_install.bat": version,
+            ".tools/templates/download_executable_template.md": version,
         },
         "WELCOME_IMAGE": {
             "construct.yaml": welcome_image_path,
@@ -340,7 +343,11 @@ def initialize_project(repo_path, project_name, version,
         },
         "GITHUB_OWNER": {
             "app/bash_bat_scripts/post_install.bat": github_owner,
-        }
+            ".tools/templates/download_executable_template.md": github_owner,
+        },
+        "GITHUB_REPO_NAME": {
+            ".tools/templates/download_executable_template.md": github_repo_name,
+        },
     }
 
     # Replace placeholders in files
@@ -511,6 +518,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             ico_image_path=ico_path,
             icns_image_path=icns_path,
             github_owner=github_owner,
+            github_repo_name=github_repo_name,
         )
 
         # Also, check if there is a README.md file and if so move it to the '.tools/docs' folder and create a new one with the project name
