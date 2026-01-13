@@ -532,6 +532,12 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             f.write(f"# {input_dict['project_name']}\n\n")
             f.write("This repository was initialized using LabConstrictor.\n")
             f.write("Please, feel free to customize this README file.\n")
+            f.write("\n")
+            f.write("## Download\n\n")
+            f.write("Upon release the downloadable assets will be available [here](.tools/docs/download_executable.md).\n")
+            f.write("\n")
+            f.write("## Internal Documentation\n\n")
+            f.write("Internal documentation is available in the [.tools/docs](.tools/docs/README.md) folder.\n")
 
         # Create a pull request using GitHub CLI
         pr_title = f"Add submission for {input_dict['project_name']}"
