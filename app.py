@@ -579,7 +579,8 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
     st.write("🏆 Finished!")
 
-
+def mark_submission_dirty():
+    st.session_state["ready_for_pr"] = False
 
 def render_sidebar_content(current_view: str):
     with st.sidebar:
@@ -610,6 +611,9 @@ def render_sidebar_content(current_view: str):
 
 
 def render_welcome_view():
+    # Always reset readiness state
+    st.session_state["ready_for_pr"] = False
+
     st.title("Welcome to LabConstrictor!")
     st.caption("Choose the workflow that best matches what you need today.")
     st.write("Select one of the options below to continue.")
@@ -652,8 +656,13 @@ def render_initialize_view():
     runtime_container = st.container()
     with runtime_container:
         st.subheader("*Project basic info")
-        project_name = st.text_input("Name of the project", placeholder="Cool Analytics API")
-        project_version = st.text_input("Initial project version", placeholder="0.0.1", help="Specify the initial version of the project.")
+        project_name = st.text_input("Name of the project", 
+                                     placeholder="Cool Analytics API",
+                                     on_change=mark_submission_dirty)
+        project_version = st.text_input("Initial project version", 
+                                        placeholder="0.0.1", 
+                                        help="Specify the initial version of the project.",
+                                        on_change=mark_submission_dirty)
 
         st.subheader("(Optional) Upload project images")
         uploaded_icon = st.file_uploader(
@@ -661,18 +670,21 @@ def render_initialize_view():
             accept_multiple_files=False,
             type="png",
             help=f"",
+            on_change=mark_submission_dirty,
         )
         uploaded_welcome = st.file_uploader(
             "Project welcome image (resized to 164 x 314 px)",
             accept_multiple_files=False,
             type="png",
             help=f"",
+            on_change=mark_submission_dirty,
         )
         uploaded_headers = st.file_uploader(
             "Project headers image (resized to 150 x 57 px)",
             accept_multiple_files=False,
             type="png",
             help=f"",
+            on_change=mark_submission_dirty,
         )
 
         submitted = st.button("Validate submission", use_container_width=True)
@@ -740,12 +752,14 @@ def render_update_view():
         accept_multiple_files=False,
         type="ipynb",
         help=f"",
+        on_change=mark_submission_dirty,
     )
     uploaded_requirements = st.file_uploader(
         "Requirements yaml file (requirements.yaml)",
         accept_multiple_files=False,
         type="yaml",
         help=f"This file can be created using the Template code cell from LabConstrictor.",
+        on_change=mark_submission_dirty,
     )
 
     submitted = st.button("Validate submission", use_container_width=True)
