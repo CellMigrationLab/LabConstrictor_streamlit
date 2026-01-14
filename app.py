@@ -539,9 +539,9 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             docs_folder = st.session_state["repo_path"] / ".tools" / "docs"
             docs_folder.mkdir(parents=True, exist_ok=True)
             # Move the existing README.md to docs folder
-            shutil.move(str(readme_path), str(docs_folder / "LabConstrictor.md"))
+            shutil.move(str(readme_path), str(docs_folder / "labconstrictor.md"))
             # Replace any occurence of '.tools/docs to . as we have moved the README.md there
-            replace_in_file(docs_folder / "LabConstrictor.md", ".tools/docs", ".")
+            replace_in_file(docs_folder / "labconstrictor.md", ".tools/docs", ".")
         with open(readme_path, "w", encoding="utf-8") as f:
             f.write(f"# {input_dict['project_name']}\n\n")
             f.write("This repository was initialized using LabConstrictor.\n")
