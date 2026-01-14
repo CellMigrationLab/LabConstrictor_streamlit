@@ -320,6 +320,7 @@ def initialize_project(repo_path, project_name, version,
         },
         "PYTHON_PROJ_NAME": {
             "setup.py": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
+            ".tools/docs/custom_code_upload": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
         },
         "UNDERSCORED_PROJECT_NAME": {
             "construct.yaml": project_name.replace(" ", "_"),
