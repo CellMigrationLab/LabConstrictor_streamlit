@@ -539,18 +539,20 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             docs_folder = st.session_state["repo_path"] / ".tools" / "docs"
             docs_folder.mkdir(parents=True, exist_ok=True)
             # Move the existing README.md to docs folder
-            shutil.move(str(readme_path), str(docs_folder / "README.md"))
+            shutil.move(str(readme_path), str(docs_folder / "LabConstrictor.md"))
+            # Replace any occurence of '.tools/docs to . as we have moved the README.md there
+            replace_in_file(docs_folder / "LabConstrictor.md", ".tools/docs", ".")
         with open(readme_path, "w", encoding="utf-8") as f:
             f.write(f"# {input_dict['project_name']}\n\n")
             f.write("This repository was initialized using LabConstrictor.\n")
             f.write("Please, feel free to customize this README file.\n")
             f.write("\n")
+            f.write("## Internal Documentation\n\n")
+            f.write("Internal documentation on how to upload notebooks or create executables is available in the [.tools/docs](.tools/docs/README.md) folder.\n")
+            f.write("\n")
             f.write("## Download\n\n")
             f.write("Upon release the downloadable assets will be available [here](.tools/docs/download_executable.md).\n")
-            f.write("\n")
-            f.write("## Internal Documentation\n\n")
-            f.write("Internal documentation is available in the [.tools/docs](.tools/docs/README.md) folder.\n")
-
+            
         # Create a pull request using GitHub CLI
         pr_title = f"Add submission for {input_dict['project_name']}"
         pr_body = f"This PR adds the submission for the project {input_dict['project_name']} v{input_dict['project_version']}."
