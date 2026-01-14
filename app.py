@@ -46,6 +46,13 @@ def validate_submission(submitted_info):
     project_name = submitted_info.get("project_name", "").strip()
     if not project_name:
         errors.append("Project name is required.")
+    else:
+        if len(project_name) < 3:
+            errors.append("Project name must be at least 3 characters long.")
+        elif len(project_name) > 50:
+            errors.append("Project name must be at most 50 characters long.")
+        elif not re.match(r"^[A-Za-z0-9 _.-]+$", project_name):
+            errors.append("Project name contains invalid characters. Only letters, numbers, spaces, underscores, hyphens, and periods are allowed.")
 
     project_version = submitted_info.get("project_version", "").strip()
     if not project_version:
@@ -310,7 +317,9 @@ def initialize_project(repo_path, project_name, version,
         "LOWER_PROJ_NAME": {
             "environment.yaml": proyectname_lower,
             ".tools/templates/download_executable_template.md": proyectname_lower,
-            "setup.py": proyectname_lower,
+        },
+        "PYTHON_PROJ_NAME": {
+            "setup.py": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
         },
         "UNDERSCORED_PROJECT_NAME": {
             "construct.yaml": project_name.replace(" ", "_"),
