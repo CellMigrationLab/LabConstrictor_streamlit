@@ -15,7 +15,7 @@ import stat
 import re
 import os
 
-st.set_page_config(page_title="LabConstrictor - Repository initializer", 
+st.set_page_config(page_title="LabConstrictor", 
                    page_icon="🐍",
                    layout="wide",
                    )
@@ -596,7 +596,10 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         st.write("🏆 Finished!")
         st.write("### 👣 Next steps")
         st.write("Everything went well and your pull request is ready.")
-        st.write(f"Please go back to [Step 2]({repo_url}?tab=readme-ov-file#step-2-initialiae-your-repository) to know how to accept the Pull Request.")
+        if input_dict["submission_mode"] == "initialize":
+            st.write(f"Please go back to [documentation]({repo_url}/blob/main/.tools/docs/initialise_repository.md) to know how to accept the Pull Request.")
+        else:
+            st.write(f"Please go back to [documentation]({repo_url}/blob/main/.tools/docs/notebook_upload.md) to continue with the Notebook upload/update.")
         st.write(f"If you want to go directly to the pull request, click here: {response['html_url']}")
 
 def mark_submission_dirty():
@@ -634,14 +637,13 @@ def render_welcome_view():
     # Always reset readiness state
     st.session_state["ready_for_pr"] = False
 
-    st.title("Welcome to LabConstrictor!")
-    st.caption("Choose the workflow that best matches what you need today.")
-    st.write("Select one of the options below to continue.")
+    st.title("Welcome to LabConstrictor! 🐍")
+    st.write("Below you can initialize your GitHub repository or upload/update a notebook to your existing project.")
 
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("Initialize a project")
-        st.write("Configure a freshly created LabConstrictor repository.")
+        st.subheader("Initialize GitHub repository")
+        st.write("After creating a repository using the LabConstrictor template, you can initialize it here.")
         st.button(
             "Start initialization",
             use_container_width=True,
@@ -649,10 +651,10 @@ def render_welcome_view():
             args=(VIEW_INITIALIZE,),
         )
     with col2:
-        st.subheader("Update a project")
-        st.write("Upload a notebook and a requirements.yaml file to update an existing project.")
+        st.subheader("Upload/Update a notebook")
+        st.write("Upload/Update a notebook and a requirements.yaml file to update an existing project.")
         st.button(
-            "Go to update flow",
+            "Upload/Update notebook",
             use_container_width=True,
             on_click=set_active_view,
             args=(VIEW_UPDATE,),
@@ -667,16 +669,18 @@ def render_initialize_view():
         args=(VIEW_WELCOME,),
     )
 
-    st.title("LabConstrictor - Repository initializer")
-    st.caption("Once you have created a GitHub repository using the LabConstrictor template, you can use this form to initialize it with your project details.")
-    st.caption("Fill in the project name, version, and optionally upload images to customize your executable interface.")
-    st.caption("Then, provide your GitHub repository URL and a Personal Access Token to create a pull request with the configuration changes.")
-    st.caption("Once you submit the form, please follow the instructions described here: ...")
+    st.title("LabConstrictor - Repository initialiser")
+    st.write("Once you have created a GitHub repository using the LabConstrictor template, you can use this form to initialise it with your project details.")
+    st.write("Please fill:")
+    st.write("- Project name: We recommend using the same name as your GitHub repository.")
+    st.write("- Initial project version: We recommend starting at version 0.0.1.")
+    st.write("- Optionally upload images to customize your executable interface.")
+    st.write("Then, click on `Validate submission`.")
 
     runtime_container = st.container()
     with runtime_container:
         st.subheader("*Project basic info")
-        project_name = st.text_input("Name of the project", 
+        project_name = st.text_input("Project name", 
                                      placeholder="Cool Analytics API",
                                      on_change=mark_submission_dirty)
         project_version = st.text_input("Initial project version", 
@@ -730,7 +734,13 @@ def render_initialize_view():
             )
 
     if st.session_state.get("ready_for_pr"):
-        st.subheader("Optional: GitHub follow-up")
+        st.subheader("Upload it to GitHub")
+
+        st.write("Now that your submission has been validated, provide:")
+        st.write(" - Your GitHub repository URL")
+        st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one)")
+        st.write("Then, click on `Create pull request` tand wait for the instructions on the output.")
+
         repo_url = st.text_input(
             "GitHub repository URL",
             key="github_repo_url",
@@ -763,10 +773,10 @@ def render_update_view():
         on_click=set_active_view,
         args=(VIEW_WELCOME,),
     )
-    st.title("Update a notebook on an existing project")
-    st.caption("Upload a notebook and a requirements.yaml file.")
-    st.caption("Then, once they are validated,provide your GitHub repository URL and a Personal Access Token to create a pull request with the configuration changes.")
-    st.caption("Once you submit the form, please follow the instructions described here: ...")
+    st.title("Upload/Update a notebook on an existing project")
+    st.write("After initialising the repository, upload a notebook and a requirements.yaml file.")
+    st.write("Remember to follow the [upload guidelines from LabConstrictor](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_upload.md).")
+
     uploaded_notebook = st.file_uploader(
         "Jupyter Notebook file (.ipynb)",
         accept_multiple_files=False,
@@ -807,7 +817,13 @@ def render_update_view():
                 )
 
     if st.session_state.get("ready_for_pr"):
-        st.success("Update submission validated successfully!")
+        st.subheader("Upload it to GitHub")
+
+        st.write("Now that your submission has been validated, provide:")
+        st.write(" - Your GitHub repository URL")
+        st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one)")
+        st.write("Then, click on `Create pull request` tand wait for the instructions on the output.")
+
         repo_url = st.text_input(
             "GitHub repository URL",
             key="github_repo_url",
@@ -834,7 +850,6 @@ def render_update_view():
                 #     status.error(f"Failed to create PR:\n{e}")
 
 current_view = st.session_state["active_view"]
-render_sidebar_content(current_view)
 
 if current_view == VIEW_INITIALIZE:
     render_initialize_view()
