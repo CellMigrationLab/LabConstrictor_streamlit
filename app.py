@@ -184,7 +184,7 @@ def create_pull_request(from_branch, title, body, github_repo_url, github_token)
 
         if response.status_code == 201:
             pr_url = response.json()["html_url"]
-            st.write(f"✅ Pull request created: {pr_url}")
+            st.write(f"✅ Pull request correctly created!")
             return response.json()
 
         elif response.status_code == 422 and "already exists" in response.text:
@@ -211,13 +211,14 @@ def push_and_create_pr(folder, branch_prefix,
         repo_path=repo_path
     )
     if branch:
-        create_pull_request(
+        return create_pull_request(
             from_branch=branch,
             title=pr_title,
             body=pr_body,
             github_repo_url=github_repo_url,
             github_token=github_token
         )
+    return None
 
 # Handle Windows permission issues with .git directories
 def handle_remove_error(func, path, exc_info):
@@ -462,7 +463,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     
     github_owner, github_repo_name = repo_url.rstrip('/').split('/')[-2:]
 
-    st.write(f"🌀 Creating pull request for {github_repo_name}...")
+    st.write(f"### Creating pull request for {github_repo_name}...")
 
     # Download the GitHub repo, create a branch, add files, open a PR, etc.
     if "repo_path" in st.session_state and (st.session_state["repo_path"] / ".git").exists():
@@ -540,9 +541,9 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             docs_folder = st.session_state["repo_path"] / ".tools" / "docs"
             docs_folder.mkdir(parents=True, exist_ok=True)
             # Move the existing README.md to docs folder
-            shutil.move(str(readme_path), str(docs_folder / "labconstrictor.md"))
+            shutil.move(str(readme_path), str(docs_folder / "README.md"))
             # Replace any occurence of '.tools/docs to . as we have moved the README.md there
-            replace_in_file(docs_folder / "labconstrictor.md", ".tools/docs", ".")
+            replace_in_file(docs_folder / "README.md", ".tools/docs", ".")
         with open(readme_path, "w", encoding="utf-8") as f:
             f.write(f"# {input_dict['project_name']}\n\n")
             f.write("This repository was initialized using LabConstrictor.\n")
@@ -555,9 +556,9 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             f.write("Upon release the downloadable assets will be available [here](.tools/docs/download_executable.md).\n")
             
         # Create a pull request using GitHub CLI
-        pr_title = f"Add submission for {input_dict['project_name']}"
-        pr_body = f"This PR adds the submission for the project {input_dict['project_name']} v{input_dict['project_version']}."
-        commit_message = f"Add initialization for {input_dict['project_name']} v{input_dict['project_version']}"
+        pr_title = f"Pull request for {input_dict['project_name']} initialisation"
+        pr_body = f"This pull request customises raw LabConstrictor template to include the project name {input_dict['project_name']} v{input_dict['project_version']}."
+        commit_message = f"Initisalise repository as {input_dict['project_name']} v{input_dict['project_version']}"
 
     elif input_dict["submission_mode"] == "update":
         
@@ -570,11 +571,11 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         with open(notebook_path / input_dict["requirements_uploaded"].name, "wb") as f:
             f.write(input_dict["requirements_uploaded"].getbuffer())
 
-        pr_title = f"Upload updated notebook {input_dict['notebook_uploaded'].name}"
-        pr_body = f"This PR updates the notebook {input_dict['notebook_uploaded'].name} and the requirements file {input_dict['requirements_uploaded'].name}."
-        commit_message = f"Update notebook {input_dict['notebook_uploaded'].name} and requirements"
+        pr_title = f"Upload/Update notebook {input_dict['notebook_uploaded'].name}"
+        pr_body = f"This pull request uploads/updates the notebook {input_dict['notebook_uploaded'].name} and the requirements file."
+        commit_message = f"Upload/Update notebook {input_dict['notebook_uploaded'].name} and requirements"
 
-    push_and_create_pr(
+    response = push_and_create_pr(
         folder=st.session_state["repo_path"],
         branch_prefix="submission",
         commit_message=commit_message,
@@ -589,7 +590,14 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
     shutil.rmtree(st.session_state["repo_path"], onerror=handle_remove_error)
     st.write(f"✅ Cleaned up the repo.")
 
-    st.write("🏆 Finished!")
+    if response is None:
+        st.write("❌ Finished!")
+    else:
+        st.write("🏆 Finished!")
+        st.write("### 👣 Next steps")
+        st.write("Everything went well and your pull request is ready.")
+        st.write(f"Please go back to [Step 2]({repo_url}?tab=readme-ov-file#step-2-initialiae-your-repository) to know how to accept the Pull Request.")
+        st.write(f"If you want to go directly to the pull request, click here: {response['html_url']}")
 
 def mark_submission_dirty():
     st.session_state["ready_for_pr"] = False
