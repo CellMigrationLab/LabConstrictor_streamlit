@@ -606,7 +606,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         if input_dict["submission_mode"] == "initialize":
             st.write(f"Please go back to [documentation]({repo_url}/blob/main/.tools/docs/initialise_repository.md) to know how to accept the Pull Request.")
         else:
-            st.write(f"Please go back to [documentation]({repo_url}/blob/main/.tools/docs/notebook_upload.md) to continue with the Notebook upload/update.")
+            st.write(f"Please go back to [documentation]({repo_url}/blob/main/.tools/docs/accept_pull_request.md) to continue with the Notebook upload/update.")
         st.write(f"If you want to go directly to the pull request, click here: {response['html_url']}")
 
 def mark_submission_dirty():
