@@ -791,11 +791,14 @@ def render_update_view():
         help=f"",
         on_change=mark_submission_dirty,
     )
+
+    st.write("If you need help to obtain the requirements file, check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_requirements.md).")
+
     uploaded_requirements = st.file_uploader(
         "Requirements yaml file (requirements.yaml)",
         accept_multiple_files=False,
         type="yaml",
-        help=f"This file can be created using the Template code cell from LabConstrictor.",
+        help=f"This file can be created using following the [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_requirements.md).",
         on_change=mark_submission_dirty,
     )
 
