@@ -537,23 +537,30 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
 
         # Also, check if there is a README.md file and if so move it to the '.tools/docs' folder and create a new one with the project name
         readme_path = st.session_state["repo_path"] / "README.md"
+
+        # Check if README.md exists
         if readme_path.exists():
-            docs_folder = st.session_state["repo_path"] / ".tools" / "docs"
-            docs_folder.mkdir(parents=True, exist_ok=True)
-            # Move the existing README.md to docs folder
-            shutil.move(str(readme_path), str(docs_folder / "README.md"))
-            # Replace any occurence of '.tools/docs to . as we have moved the README.md there
-            replace_in_file(docs_folder / "README.md", ".tools/docs", ".")
-        with open(readme_path, "w", encoding="utf-8") as f:
-            f.write(f"# {input_dict['project_name']}\n\n")
-            f.write("This repository was initialised using LabConstrictor.\n")
-            f.write("Please, feel free to customise this README file.\n")
-            f.write("\n")
-            f.write("## Internal Documentation\n\n")
-            f.write("Internal documentation on how to upload notebooks or create executables is available in the [.tools/docs](.tools/docs/README.md) folder.\n")
-            f.write("\n")
-            f.write("## Download\n\n")
-            f.write("Upon release the downloadable assets will be available [here](.tools/docs/download_executable.md).\n")
+            # Check if it's the README from LabConstrictor template
+            readme_content = readme_path.read_text(encoding="utf-8")
+            if "# LabConstrictor" in readme_content:
+                docs_folder = st.session_state["repo_path"] / ".tools" / "docs"
+                docs_folder.mkdir(parents=True, exist_ok=True)
+                # Move the existing README.md to docs folder
+                shutil.move(str(readme_path), str(docs_folder / "README.md"))
+                # Replace any occurence of '.tools/docs to . as we have moved the README.md there
+                replace_in_file(docs_folder / "README.md", ".tools/docs", ".")
+
+                # Create a new README.md with the project name
+                with open(readme_path, "w", encoding="utf-8") as f:
+                    f.write(f"# {input_dict['project_name']}\n\n")
+                    f.write("This repository was initialised using LabConstrictor.\n")
+                    f.write("Please, feel free to customise this README file.\n")
+                    f.write("\n")
+                    f.write("## Internal Documentation\n\n")
+                    f.write("Internal documentation on how to upload notebooks or create executables is available in the [.tools/docs](.tools/docs/README.md) folder.\n")
+                    f.write("\n")
+                    f.write("## Download\n\n")
+                    f.write("Upon release the downloadable assets will be available [here](.tools/docs/download_executable.md).\n")
             
         # Create a pull request using GitHub CLI
         pr_title = f"Pull request for {input_dict['project_name']} initialisation"
