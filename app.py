@@ -487,7 +487,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         
         st.write(f"✅ Git repo cloned at {st.session_state['repo_path']}")
 
-    st.write("🛠 Initializing project files...")
+    st.write("🛠 Initialising project files...")
 
     if input_dict["submission_mode"] == "initialize":
         logo_folder_path = st.session_state["repo_path"] / "app" / "logo"
@@ -546,8 +546,8 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             replace_in_file(docs_folder / "README.md", ".tools/docs", ".")
         with open(readme_path, "w", encoding="utf-8") as f:
             f.write(f"# {input_dict['project_name']}\n\n")
-            f.write("This repository was initialized using LabConstrictor.\n")
-            f.write("Please, feel free to customize this README file.\n")
+            f.write("This repository was initialised using LabConstrictor.\n")
+            f.write("Please, feel free to customise this README file.\n")
             f.write("\n")
             f.write("## Internal Documentation\n\n")
             f.write("Internal documentation on how to upload notebooks or create executables is available in the [.tools/docs](.tools/docs/README.md) folder.\n")
@@ -627,7 +627,7 @@ def render_sidebar_content(current_view: str):
             st.write("Pick what you would like to do on the main panel to continue.")
             st.markdown(
                 """
-- Initialize a brand new LabConstrictor repository.
+- Initialising a brand new LabConstrictor repository.
 - Or prepare to update an existing deployment (coming soon).
                 """
             )
@@ -638,14 +638,14 @@ def render_welcome_view():
     st.session_state["ready_for_pr"] = False
 
     st.title("Welcome to LabConstrictor! 🐍")
-    st.write("Below you can initialize your GitHub repository or upload/update a notebook to your existing project.")
+    st.write("Below you can initialise your GitHub repository or upload/update a notebook to your existing project.")
 
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("Initialize GitHub repository")
-        st.write("After creating a repository using the LabConstrictor template, you can initialize it here.")
+        st.subheader("Initialise GitHub repository")
+        st.write("After creating a repository using the LabConstrictor template, you can initialise it here.")
         st.button(
-            "Start initialization",
+            "Start initialisation",
             use_container_width=True,
             on_click=set_active_view,
             args=(VIEW_INITIALIZE,),
