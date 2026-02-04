@@ -308,12 +308,21 @@ def create_icns(img, output_path):
         f.write(icns_header)
         f.write(icns_data)
 
-def initialize_project(repo_path, project_name, version, 
+def initialize_project(repo_path, project_name, version, hide_code,
                        welcome_image_path, header_image_path, icon_image_path,
                        ico_image_path, icns_image_path, 
                        github_owner, github_repo_name):
-    proyectname_lower = project_name.lower()
 
+    # Copy and replace template files into their final locations
+    template_to_location = {
+        ".tools/templates/hide_code_config.py": "app/python_scripts/hide_code_config.py"
+    }
+
+    for template_path, final_path in template_to_location.items():
+        shutil.copyfile(repo_path / template_path, repo_path / final_path)
+
+    # Define the conversion dictionary
+    proyectname_lower = project_name.lower()
     conversion_dict = {
         "LOWER_PROJ_NAME": {
             "environment.yaml": proyectname_lower,
@@ -362,6 +371,9 @@ def initialize_project(repo_path, project_name, version,
         "GITHUB_REPO_NAME": {
             ".tools/templates/download_executable_template.md": github_repo_name,
         },
+        "HIDE_CODE_DISABLED": {
+            "app/python_scripts/hide_code_config.py": hide_code,
+        }
     }
 
     # Replace placeholders in files
@@ -526,6 +538,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             repo_path=st.session_state["repo_path"],
             project_name=input_dict["project_name"],
             version=input_dict["project_version"],
+            hide_code=input_dict["hide_code"],
             welcome_image_path=welcome_path,
             header_image_path=headers_path,
             icon_image_path=icon_path,
@@ -681,6 +694,7 @@ def render_initialize_view():
     st.write("Please fill:")
     st.write("- Project name: We recommend using the same name as your GitHub repository.")
     st.write("- Initial project version: We recommend starting at version 0.0.1.")
+    st.write(f"- Optionally disable automatic code hiding in notebooks. By default, LabConstrictor hides code cells in the notebooks. If you are wondering what this means, please check [this documentation]({repo_url}/blob/main/.tools/docs/code_hiding.md).")
     st.write("- Optionally upload images to customize your executable interface.")
     st.write("Then, click on `Validate submission`.")
 
@@ -694,6 +708,10 @@ def render_initialize_view():
                                         placeholder="0.0.1", 
                                         help="Specify the initial version of the project.",
                                         on_change=mark_submission_dirty)
+        hide_code = st.checkbox("Disable automatic code hiding in notebooks",
+                                value=False,
+                                help="If checked, the code hiding feature will be disabled in the generated executable.",
+                                on_change=mark_submission_dirty)
 
         st.subheader("(Optional) Upload project images")
         uploaded_icon = st.file_uploader(
@@ -725,6 +743,7 @@ def render_initialize_view():
             "submission_mode": "initialize",
             "project_name": project_name,
             "project_version": project_version,
+            "hide_code": hide_code,
             "icon_uploaded": uploaded_icon,
             "welcome_uploaded": uploaded_welcome,
             "headers_uploaded": uploaded_headers,    
