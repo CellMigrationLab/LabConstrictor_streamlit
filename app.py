@@ -315,7 +315,7 @@ def initialize_project(repo_path, project_name, version, hide_code,
 
     # Copy and replace template files into their final locations
     template_to_location = {
-        ".tools/templates/hide_code_config.py": "app/python_scripts/hide_code_config.py"
+        ".tools/templates/hide_code_cells.py": "app/python_scripts/hide_code_cells.py"
     }
 
     for template_path, final_path in template_to_location.items():
@@ -372,7 +372,7 @@ def initialize_project(repo_path, project_name, version, hide_code,
             ".tools/templates/download_executable_template.md": github_repo_name,
         },
         "HIDE_CODE_DISABLED": {
-            "app/python_scripts/hide_code_config.py": hide_code,
+            "app/python_scripts/hide_code_cells.py": hide_code,
         }
     }
 
