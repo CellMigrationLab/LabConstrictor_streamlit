@@ -45,6 +45,27 @@ def validate_repo_format(repo_url):
         return True
     return False
 
+def validate_requirements(uploaded_requirements):
+    # First read the requirements.yaml content
+    try:
+        content = uploaded_requirements.read().decode("utf-8")
+        data = yaml.safe_load(content)
+        if not isinstance(data, dict) or "dependencies" not in data:
+            return False, "The requirements file must contain a 'dependencies' key with a list of dependencies."
+        dependencies = data["dependencies"]
+        if not isinstance(dependencies, list):
+            return False, "The 'dependencies' key must be a list."
+        for dep in dependencies:
+            if not isinstance(dep, str):
+                return False, f"Dependency '{dep}' is not a string."
+            else:
+                # Only allow fixed version dependencies in the format 'package==version'
+                if not re.match(r"^[a-zA-Z0-9_.-]+==[a-zA-Z0-9_.-]+$", dep):
+                    return False, f"Dependency '{dep}' is not in the correct format. Only fixed versions with 'package==version' are allowed."
+        return True, "Requirements file is valid."
+    except Exception as e:
+        return False, f"Error reading requirements file: {e}"
+
 def validate_submission(submitted_info):
     """Ensure required inputs exist and meet basic quality checks."""
     errors = []
@@ -843,9 +864,13 @@ def render_update_view():
         elif not uploaded_requirements:
             st.error("Please upload a requirements yaml file.")
             st.session_state["ready_for_pr"] = False
+        elif uploaded_requirements.name != "requirements.yaml":
+            st.error("The requirements file must be named 'requirements.yaml'.")
+            st.session_state["ready_for_pr"] = False
         else:
-            if uploaded_requirements.name != "requirements.yaml":
-                st.error("The requirements file must be named 'requirements.yaml'.")
+            validation_flag, validation_msg = validate_requirements(uploaded_requirements)
+            if not validation_flag:
+                st.error(f"Requirements file validation failed: {validation_msg}")
                 st.session_state["ready_for_pr"] = False
             else:
                 st.session_state["ready_for_pr"] = True
