@@ -694,7 +694,7 @@ def render_initialize_view():
     st.write("Please fill:")
     st.write("- Project name: We recommend using the same name as your GitHub repository.")
     st.write("- Initial project version: We recommend starting at version 0.0.1.")
-    st.write(f"- Optionally disable automatic code hiding in notebooks. By default, LabConstrictor hides code cells in the notebooks. If you are wondering what this means, please check [this documentation]({repo_url}/blob/main/.tools/docs/code_hiding.md).")
+    st.write(f"- Optionally disable automatic code hiding in notebooks. By default, LabConstrictor hides code cells in the notebooks. If you are wondering what this means, please check [this documentation](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/code_hiding.md).")
     st.write("- Optionally upload images to customize your executable interface.")
     st.write("Then, click on `Validate submission`.")
 
