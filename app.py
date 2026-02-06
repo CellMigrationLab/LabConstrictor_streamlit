@@ -38,6 +38,12 @@ if "active_view" not in st.session_state:
 def set_active_view(view_name: str):
     st.session_state["active_view"] = view_name
 
+def validate_repo_format(repo_url):
+    """Validate that the repository URL is in the correct format."""
+    pattern = r"^https://github\.com/[^/]+/[^/]+/?$"
+    if re.match(pattern, repo_url):
+        return True
+    return False
 
 def validate_submission(submitted_info):
     """Ensure required inputs exist and meet basic quality checks."""
@@ -784,13 +790,15 @@ def render_initialize_view():
         )
 
         if create_pr:
-            with st.status("Creating pull request...", expanded=True) as status:
-                enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-                # try:
-                #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-                # except Exception as e:
-                #     status.error(f"Failed to create PR:\n{e}")
-
+            if validate_repo_format(repo_url.strip()):
+                with st.status("Creating pull request...", expanded=True) as status:
+                    enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                    # try:
+                    #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                    # except Exception as e:
+                    #     status.error(f"Failed to create PR:\n{e}")
+            else:
+                st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
 
 def render_update_view():
     st.button(
@@ -868,15 +876,17 @@ def render_update_view():
             "Create pull request",
             disabled=not repo_url.strip(),
         )
-
+        
         if create_pr:
-
-            with st.status("Creating pull request...", expanded=True) as status:
-                enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-                # try:
-                #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-                # except Exception as e:
-                #     status.error(f"Failed to create PR:\n{e}")
+            if validate_repo_format(repo_url.strip()):
+                with st.status("Creating pull request...", expanded=True) as status:
+                    enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                    # try:
+                    #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                    # except Exception as e:
+                    #     status.error(f"Failed to create PR:\n{e}")
+            else:
+                st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
 
 current_view = st.session_state["active_view"]
 
