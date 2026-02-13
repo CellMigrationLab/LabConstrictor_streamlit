@@ -648,6 +648,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         else:
             st.write(f"Please go back to [documentation]({repo_url}/blob/main/.tools/docs/accept_pull_request.md) to continue with the Notebook upload/update.")
         st.write(f"If you want to go directly to the pull request, click here: {response['html_url']}")
+        st.write("After the pull request is accepted you can close this Streamlit app and start working on your project! 🚀")
 
 def mark_submission_dirty():
     st.session_state["ready_for_pr"] = False
