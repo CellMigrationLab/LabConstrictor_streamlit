@@ -641,7 +641,8 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         notebook_names = []
         for upload in normalized_uploads:
             notebook_name = upload["notebook_name"]
-            requirements_name = upload["requirements_name"]
+            # The requirements file must be named 'requirements.yaml' to be correctly processed in the repo, but we can allow some flexibility in the upload naming and just rename it here
+            requirements_name = "requirements.yaml" # upload["requirements_name"]
             notebook_names.append(notebook_name)
 
             notebook_path = (
@@ -942,8 +943,6 @@ def render_update_view():
             st.error("Please upload a Jupyter Notebook file.")
         elif not uploaded_requirements:
             st.error("Please upload a requirements yaml file.")
-        elif uploaded_requirements.name != "requirements.yaml":
-            st.error("The requirements file must be named 'requirements.yaml'.")
         else:
             validation_flag, validation_msg = validate_requirements(uploaded_requirements)
             if uploaded_requirements is not None:
