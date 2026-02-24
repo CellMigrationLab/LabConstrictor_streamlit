@@ -26,6 +26,10 @@ if "ready_for_pr" not in st.session_state:
     st.session_state["ready_for_pr"] = False
 if "github_repo_url" not in st.session_state:
     st.session_state["github_repo_url"] = ""
+if "update_upload_queue" not in st.session_state:
+    st.session_state["update_upload_queue"] = []
+if "update_upload_form_key" not in st.session_state:
+    st.session_state["update_upload_form_key"] = 0
 
 VIEW_WELCOME = "welcome"
 VIEW_INITIALIZE = "initialize"
@@ -608,19 +612,65 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         commit_message = f"Initisalise repository as {input_dict['project_name']} v{input_dict['project_version']}"
 
     elif input_dict["submission_mode"] == "update":
-        
-        # Create the notebooks folder if it does not exist
-        notebook_path = st.session_state["repo_path"] / "notebooks" / input_dict["notebook_uploaded"].name.replace(".ipynb", "")
-        notebook_path.mkdir(parents=True, exist_ok=True)
+        uploads = input_dict.get("queued_uploads")
+        if not uploads:
+            uploads = [
+                {
+                    "notebook_uploaded": input_dict["notebook_uploaded"],
+                    "requirements_uploaded": input_dict["requirements_uploaded"],
+                }
+            ]
 
-        with open(notebook_path / input_dict["notebook_uploaded"].name, "wb") as f:
-            f.write(input_dict["notebook_uploaded"].getbuffer())
-        with open(notebook_path / input_dict["requirements_uploaded"].name, "wb") as f:
-            f.write(input_dict["requirements_uploaded"].getbuffer())
+        normalized_uploads = []
+        required_upload_keys = {"notebook_name", "notebook_bytes", "requirements_name", "requirements_bytes"}
+        for upload in uploads:
+            if required_upload_keys <= set(upload.keys()):
+                normalized_uploads.append(upload)
+            elif "notebook_uploaded" in upload and "requirements_uploaded" in upload:
+                normalized_uploads.append(
+                    {
+                        "notebook_name": upload["notebook_uploaded"].name,
+                        "notebook_bytes": bytes(upload["notebook_uploaded"].getbuffer()),
+                        "requirements_name": upload["requirements_uploaded"].name,
+                        "requirements_bytes": bytes(upload["requirements_uploaded"].getbuffer()),
+                    }
+                )
+            else:
+                raise ValueError("Notebook submission payload is missing file content.")
 
-        pr_title = f"Upload/Update notebook {input_dict['notebook_uploaded'].name}"
-        pr_body = f"This pull request uploads/updates the notebook {input_dict['notebook_uploaded'].name} and the requirements file."
-        commit_message = f"Upload/Update notebook {input_dict['notebook_uploaded'].name} and requirements"
+        notebook_names = []
+        for upload in normalized_uploads:
+            notebook_name = upload["notebook_name"]
+            requirements_name = upload["requirements_name"]
+            notebook_names.append(notebook_name)
+
+            notebook_path = (
+                st.session_state["repo_path"] / "notebooks" / Path(notebook_name).stem
+            )
+            notebook_path.mkdir(parents=True, exist_ok=True)
+
+            with open(notebook_path / notebook_name, "wb") as f:
+                f.write(upload["notebook_bytes"])
+            with open(notebook_path / requirements_name, "wb") as f:
+                f.write(upload["requirements_bytes"])
+
+        if len(notebook_names) == 1:
+            pr_title = f"Upload/Update notebook {notebook_names[0]}"
+            pr_body = (
+                f"This pull request uploads/updates the notebook {notebook_names[0]} "
+                "and the requirements file."
+            )
+            commit_message = (
+                f"Upload/Update notebook {notebook_names[0]} and requirements"
+            )
+        else:
+            notebook_list = "\n".join(f"- {name}" for name in notebook_names)
+            pr_title = f"Upload/Update {len(notebook_names)} notebooks"
+            pr_body = (
+                "This pull request uploads/updates the following notebooks:\n"
+                f"{notebook_list}"
+            )
+            commit_message = f"Upload/Update {len(notebook_names)} notebooks"
 
     response = push_and_create_pr(
         folder=st.session_state["repo_path"],
@@ -649,6 +699,8 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             st.write(f"Please go back to [documentation]({repo_url}/blob/main/.tools/docs/accept_pull_request.md) to continue with the Notebook upload/update.")
         st.write(f"If you want to go directly to the pull request, click here: {response['html_url']}")
         st.write("After the pull request is accepted you can close this Streamlit app and start working on your project! 🚀")
+    
+    return response
 
 def mark_submission_dirty():
     st.session_state["ready_for_pr"] = False
@@ -787,99 +839,26 @@ def render_initialize_view():
                 f"Project '{project_name.strip()}' was submitted successfully!"
             )
 
-    if st.session_state.get("ready_for_pr"):
-        st.subheader("Upload it to GitHub")
+    if queued_uploads:
+        st.subheader("Submission list")
+        removal_index = None
+        for idx, queued in enumerate(queued_uploads):
+            col1, col2, col3 = st.columns([3, 3, 1])
+            with col1:
+                st.markdown(f"**Notebook:** {queued['notebook_name']}")
+            with col2:
+                st.markdown(f"**Requirements:** {queued['requirements_name']}")
+            with col3:
+                if st.button("Remove", key=f"remove_upload_{idx}"):
+                    removal_index = idx
+        if removal_index is not None:
+            removed = queued_uploads.pop(removal_index)
+            st.session_state["update_upload_queue"] = queued_uploads
+            st.info(f"Removed '{removed['notebook_name']}' from the submission list.")
+    else:
+        st.info("Add at least one notebook + requirements pair to build the submission list.")
 
-        st.write("Now that your submission has been validated, provide:")
-        st.write(" - Your GitHub repository URL")
-        st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one)")
-        st.write("Then, click on `Create pull request` tand wait for the instructions on the output.")
-
-        repo_url = st.text_input(
-            "GitHub repository URL",
-            key="github_repo_url",
-            placeholder="https://github.com/org/repo",
-            help="Paste the repository where the pull request should be opened.",
-        )
-        token = st.text_input("Personal Access Token", 
-                              key="pat",
-                              type="password",
-                              help="Provide a GitHub Personal Access Token with repo permissions.",
-                              )
-        create_pr = st.button(
-            "Create pull request",
-            disabled=not repo_url.strip(),
-        )
-
-        if create_pr:
-            if validate_repo_format(repo_url.strip()):
-                with st.status("Creating pull request...", expanded=True) as status:
-                    enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-                    # try:
-                    #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-                    # except Exception as e:
-                    #     status.error(f"Failed to create PR:\n{e}")
-            else:
-                st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
-
-def render_update_view():
-    st.button(
-        "<- Back to welcome",
-        key="back_to_welcome_update",
-        on_click=set_active_view,
-        args=(VIEW_WELCOME,),
-    )
-    st.title("Upload/Update a notebook on an existing project")
-    st.write("After initialising the repository, upload a notebook and a requirements.yaml file.")
-    st.write("Remember to follow the [upload guidelines from LabConstrictor](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_upload.md).")
-
-    uploaded_notebook = st.file_uploader(
-        "Jupyter Notebook file (.ipynb)",
-        accept_multiple_files=False,
-        type="ipynb",
-        help=f"",
-        on_change=mark_submission_dirty,
-    )
-
-    st.write("If you need help to obtain the requirements file, check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_requirements.md).")
-
-    uploaded_requirements = st.file_uploader(
-        "Requirements yaml file (requirements.yaml)",
-        accept_multiple_files=False,
-        type="yaml",
-        help=f"This file can be created using following the [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_requirements.md).",
-        on_change=mark_submission_dirty,
-    )
-
-    submitted = st.button("Validate submission", use_container_width=True)
-    
-    if submitted:
-        st.session_state["submitted_info"] = {
-            "submission_mode": "update",
-            "notebook_uploaded": uploaded_notebook,
-            "requirements_uploaded": uploaded_requirements,
-        }
-        if not uploaded_notebook:
-            st.error("Please upload a Jupyter Notebook file.")
-            st.session_state["ready_for_pr"] = False
-        elif not uploaded_requirements:
-            st.error("Please upload a requirements yaml file.")
-            st.session_state["ready_for_pr"] = False
-        elif uploaded_requirements.name != "requirements.yaml":
-            st.error("The requirements file must be named 'requirements.yaml'.")
-            st.session_state["ready_for_pr"] = False
-        else:
-            validation_flag, validation_msg = validate_requirements(uploaded_requirements)
-            if not validation_flag:
-                st.error(f"Requirements file validation failed: {validation_msg}")
-                st.session_state["ready_for_pr"] = False
-            else:
-                st.session_state["ready_for_pr"] = True
-                st.success(
-                    f"Notebook '{uploaded_notebook.name}' and requirements '{uploaded_requirements.name}' were submitted successfully!"
-                )
-
-    if st.session_state.get("ready_for_pr"):
+    if queued_uploads:
         st.subheader("Upload it to GitHub")
 
         st.write("Now that your submission has been validated, provide:")
@@ -906,11 +885,169 @@ def render_update_view():
         if create_pr:
             if validate_repo_format(repo_url.strip()):
                 with st.status("Creating pull request...", expanded=True) as status:
-                    enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-                    # try:
-                    #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
-                    # except Exception as e:
-                    #     status.error(f"Failed to create PR:\n{e}")
+                    submission_payload = {
+                        "submission_mode": "update",
+                        "queued_uploads": list(queued_uploads),
+                    }
+                    response = enqueue_pull_request(repo_url.strip(), token.strip(), submission_payload)
+                if response:
+                    st.session_state["update_upload_queue"] = []
+                    st.success("Cleared the submission list after a successful pull request.")
+                # try:
+                #     enqueue_pull_request(repo_url.strip(), token.strip(), submission_payload)
+                # except Exception as e:
+                #     status.error(f"Failed to create PR:\n{e}")
+            else:
+                st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
+
+def render_update_view():
+    st.button(
+        "<- Back to welcome",
+        key="back_to_welcome_update",
+        on_click=set_active_view,
+        args=(VIEW_WELCOME,),
+    )
+    st.title("Upload/Update a notebook on an existing project")
+    st.write("After initialising the repository, upload a notebook and a requirements.yaml file.")
+    st.write("Remember to follow the [upload guidelines from LabConstrictor](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_upload.md).")
+    st.write("Upload notebook/requirements pairs one at a time, validate them, and keep stacking them in the submission list before opening a pull request.")
+
+    queued_uploads = st.session_state["update_upload_queue"]
+    form_key = st.session_state["update_upload_form_key"]
+
+    uploaded_notebook = st.file_uploader(
+        "Jupyter Notebook file (.ipynb)",
+        key=f"uploaded_notebook_{form_key}",
+        accept_multiple_files=False,
+        type="ipynb",
+        help=f"",
+        on_change=mark_submission_dirty,
+    )
+
+    st.write("If you need help to obtain the requirements file, check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_requirements.md).")
+
+    uploaded_requirements = st.file_uploader(
+        "Requirements yaml file (requirements.yaml)",
+        key=f"uploaded_requirements_{form_key}",
+        accept_multiple_files=False,
+        type="yaml",
+        help=f"This file can be created using following the [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_requirements.md).",
+        on_change=mark_submission_dirty,
+    )
+
+    submitted = st.button("Validate & add to submission list", use_container_width=True)
+
+    if submitted:
+        if not uploaded_notebook:
+            st.error("Please upload a Jupyter Notebook file.")
+        elif not uploaded_requirements:
+            st.error("Please upload a requirements yaml file.")
+        elif uploaded_requirements.name != "requirements.yaml":
+            st.error("The requirements file must be named 'requirements.yaml'.")
+        else:
+            validation_flag, validation_msg = validate_requirements(uploaded_requirements)
+            if uploaded_requirements is not None:
+                uploaded_requirements.seek(0)
+            if uploaded_notebook is not None:
+                uploaded_notebook.seek(0)
+
+            if not validation_flag:
+                st.error(f"Requirements file validation failed: {validation_msg}")
+            else:
+                notebook_already_in_queue = False
+                for upload in queued_uploads:
+                    if upload["notebook_name"] == uploaded_notebook.name:
+                        # If the notebook was already on the list it would get updated
+                        upload.update({
+                            "notebook_name": uploaded_notebook.name,
+                            "notebook_bytes": bytes(uploaded_notebook.getbuffer()),
+                            "requirements_name": uploaded_requirements.name,
+                            "requirements_bytes": bytes(uploaded_requirements.getbuffer()),
+                            "submitted_time": datetime.now().strftime("%H:%M:%S %Y/%m/%d"),
+                        })
+                        notebook_already_in_queue = True
+
+                if notebook_already_in_queue:
+                    st.success(
+                        f"Notebook '{uploaded_notebook.name}' and requirements '{uploaded_requirements.name}' were updated in the submission list."
+                    )
+                else:
+                    queued_uploads.append(
+                        {
+                            "notebook_name": uploaded_notebook.name,
+                            "notebook_bytes": bytes(uploaded_notebook.getbuffer()),
+                            "requirements_name": uploaded_requirements.name,
+                            "requirements_bytes": bytes(uploaded_requirements.getbuffer()),
+                            "submitted_time": datetime.now().strftime("%H:%M:%S %Y/%m/%d"),
+                        }
+                    )
+                    st.success(
+                        f"Notebook '{uploaded_notebook.name}' and requirements '{uploaded_requirements.name}' were added to the submission list."
+                    )
+                
+                st.session_state["update_upload_queue"] = queued_uploads
+                st.session_state["update_upload_form_key"] += 1  # generate new widget keys
+                st.session_state.pop(f"uploaded_notebook_{form_key}", None)
+                st.session_state.pop(f"uploaded_requirements_{form_key}", None)
+                st.rerun()
+
+    if queued_uploads:
+        st.subheader("Submission list")
+        removal_index = None
+        for idx, queued in enumerate(queued_uploads):
+            col1, col2, col3, col4 = st.columns([3, 3, 3, 1])
+            with col1:
+                st.markdown(f"**Notebook:** {queued['notebook_name']}")
+            with col2:
+                st.markdown(f"**Requirements:** {queued['requirements_name']}")
+            with col3:
+                st.markdown(f"**Submitted at:** {queued['submitted_time']}")
+            with col4:
+                if st.button("Remove", key=f"remove_upload_{idx}"):
+                    removal_index = idx
+        if removal_index is not None:
+            removed = queued_uploads.pop(removal_index)
+            st.session_state["update_upload_queue"] = queued_uploads
+            st.rerun()
+            st.info(f"Removed '{removed['notebook_name']}' from the submission list.")
+            
+    if queued_uploads:
+        st.subheader("Upload it to GitHub")
+
+        st.write("Now that your submission list looks good, provide:")
+        st.write(" - Your GitHub repository URL")
+        st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one)")
+        st.write("Then, click on `Create pull request` and wait for the instructions on the output.")
+
+        repo_url = st.text_input(
+            "GitHub repository URL",
+            key="github_repo_url",
+            placeholder="https://github.com/org/repo",
+            help="Paste the repository where the pull request should be opened.",
+        )
+        token = st.text_input(
+            "Personal Access Token",
+            key="pat",
+            type="password",
+            help="Provide a GitHub Personal Access Token with repo permissions.",
+        )
+        create_pr = st.button(
+            "Create pull request",
+            disabled=not repo_url.strip(),
+        )
+
+        if create_pr:
+            if validate_repo_format(repo_url.strip()):
+                with st.status("Creating pull request...", expanded=True) as status:
+                    submission_payload = {
+                        "submission_mode": "update",
+                        "queued_uploads": list(queued_uploads),
+                    }
+                    enqueue_pull_request(repo_url.strip(), token.strip(), submission_payload)
+                # try:
+                #     enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                # except Exception as e:
+                #     status.error(f"Failed to create PR:\n{e}")
             else:
                 st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
 
