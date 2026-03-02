@@ -877,6 +877,42 @@ def render_initialize_view():
             st.success(
                 f"Project '{project_name.strip()}' was submitted successfully!"
             )
+            st.session_state["ready_for_pr"] = True
+     
+    if st.session_state["ready_for_pr"]:
+        st.subheader("Upload it to GitHub")
+
+        st.write("Now that your submission list looks good, provide:")
+        st.write(" - Your GitHub repository URL")
+        st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one)")
+        st.write("Then, click on `Create pull request` and wait for the instructions on the output.")
+
+        repo_url = st.text_input(
+            "GitHub repository URL",
+            key="github_repo_url",
+            placeholder="https://github.com/org/repo",
+            help="Paste the repository where the pull request should be opened.",
+        )
+        token = st.text_input(
+            "Personal Access Token",
+            key="pat",
+            type="password",
+            help="Provide a GitHub Personal Access Token with repo permissions.",
+        )
+        create_pr = st.button(
+            "Create pull request",
+            disabled=not repo_url.strip(),
+        )
+
+        if create_pr:
+            if validate_repo_format(repo_url.strip()):
+                with st.status("Creating pull request...", expanded=True) as status:
+                    try:
+                        enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
+                    except Exception as e:
+                        status.error(f"Failed to create PR:\n{e}")
+            else:
+                st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
 
 def render_update_view():
     st.button(
