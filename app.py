@@ -41,37 +41,39 @@ VIEW_UPDATE = "update"
 if "active_view" not in st.session_state:
     st.session_state["active_view"] = VIEW_WELCOME
 
-def stdlib_modules_via_pydoc():
-    paths = sysconfig.get_paths()
-    stdlib = paths.get("stdlib")
-    platstdlib = paths.get("platstdlib")
-
-    # Keep only stdlib-ish paths (and drop site-packages + current dir)
-    keep_prefixes = tuple(p for p in (stdlib, platstdlib) if p)
-    old_path = sys.path[:]
-    try:
-        sys.path[:] = [
-            p for p in sys.path
-            if isinstance(p, str)
-            and p not in ("", os.getcwd())
-            and "site-packages" not in p
-            and p.startswith(keep_prefixes)
-        ]
-
-        mods = set(sys.builtin_module_names)
-
-        def callback(path, modname, desc):
-            if modname.endswith(".__init__"):
-                modname = modname[:-9]  # drop .__init__
-            if "." not in modname:
-                mods.add(modname)
-
-        pydoc.ModuleScanner().run(callback)
-        return sorted(mods)
-    finally:
-        sys.path[:] = old_path
-
-st.session_state["stdlib_modules"] = stdlib_modules_via_pydoc()
+st.session_state["stdlib_modules"] = ['__future__', '__hello__', '__phello__', '_abc', '_aix_support', '_android_support', 
+                                      '_apple_support', '_ast', '_bisect', '_blake2', '_codecs', '_codecs_cn', '_codecs_hk', 
+                                      '_codecs_iso2022', '_codecs_jp', '_codecs_kr', '_codecs_tw', '_collections', 
+                                      '_collections_abc', '_colorize', '_compat_pickle', '_compression', '_contextvars', 
+                                      '_csv', '_datetime', '_functools', '_heapq', '_imp', '_interpchannels', '_interpqueues', 
+                                      '_interpreters', '_io', '_ios_support', '_json', '_locale', '_lsprof', '_markupbase', 
+                                      '_md5', '_multibytecodec', '_opcode', '_opcode_metadata', '_operator', '_osx_support', 
+                                      '_pickle', '_py_abc', '_pydatetime', '_pydecimal', '_pyio', '_pylong', '_pyrepl', 
+                                      '_random', '_sha1', '_sha2', '_sha3', '_signal', '_sitebuiltins', '_sre', '_stat', 
+                                      '_statistics', '_string', '_strptime', '_struct', '_suggestions', '_symtable', '_sysconfig', 
+                                      '_thread', '_threading_local', '_tokenize', '_tracemalloc', '_typing', '_warnings', '_weakref', 
+                                      '_weakrefset', '_winapi', 'abc', 'antigravity', 'argparse', 'array', 'ast', 'asyncio', 
+                                      'atexit', 'base64', 'bdb', 'binascii', 'bisect', 'builtins', 'bz2', 'cProfile', 'calendar', 
+                                      'cmath', 'cmd', 'code', 'codecs', 'codeop', 'collections', 'colorsys', 'compileall', 
+                                      'concurrent', 'configparser', 'contextlib', 'contextvars', 'copy', 'copyreg', 'csv', 
+                                      'ctypes', 'curses', 'dataclasses', 'datetime', 'dbm', 'decimal', 'difflib', 'dis', 
+                                      'doctest', 'email', 'encodings', 'ensurepip', 'enum', 'errno', 'faulthandler', 'filecmp', 
+                                      'fileinput', 'fnmatch', 'fractions', 'ftplib', 'functools', 'gc', 'genericpath', 'getopt', 
+                                      'getpass', 'gettext', 'glob', 'graphlib', 'gzip', 'hashlib', 'heapq', 'hmac', 'html', 'http', 
+                                      'idlelib', 'imaplib', 'importlib', 'inspect', 'io', 'ipaddress', 'itertools', 'json', 'keyword', 
+                                      'linecache', 'locale', 'logging', 'lzma', 'mailbox', 'marshal', 'math', 'mimetypes', 'mmap', 
+                                      'modulefinder', 'msvcrt', 'multiprocessing', 'netrc', 'nt', 'ntpath', 'nturl2path', 'numbers', 
+                                      'opcode', 'operator', 'optparse', 'os', 'pathlib', 'pdb', 'pickle', 'pickletools', 'pkgutil', 
+                                      'platform', 'plistlib', 'poplib', 'posixpath', 'pprint', 'profile', 'pstats', 'pty', 'py_compile', 
+                                      'pyclbr', 'pydoc', 'pydoc_data', 'queue', 'quopri', 'random', 're', 'reprlib', 'rlcompleter', 
+                                      'runpy', 'sched', 'secrets', 'selectors', 'shelve', 'shlex', 'shutil', 'signal', 'site', 
+                                      'smtplib', 'socket', 'socketserver', 'sqlite3', 'sre_compile', 'sre_constants', 'sre_parse', 
+                                      'ssl', 'stat', 'statistics', 'string', 'stringprep', 'struct', 'subprocess', 'symtable', 
+                                      'sys', 'sysconfig', 'tabnanny', 'tarfile', 'tempfile', 'test', 'textwrap', 'this', 'threading', 
+                                      'time', 'timeit', 'tkinter', 'token', 'tokenize', 'tomllib', 'trace', 'traceback', 'tracemalloc', 
+                                      'tty', 'turtle', 'turtledemo', 'types', 'typing', 'unittest', 'urllib', 'uuid', 'venv', 'warnings', 
+                                      'wave', 'weakref', 'webbrowser', 'winreg', 'wsgiref', 'xml', 'xmlrpc', 'xxsubtype', 'zipapp', 
+                                      'zipfile', 'zipimport', 'zlib', 'zoneinfo']
 
 def set_active_view(view_name: str):
     st.session_state["active_view"] = view_name
