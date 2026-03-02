@@ -880,12 +880,12 @@ def render_initialize_view():
             st.session_state["ready_for_pr"] = True
      
     if st.session_state["ready_for_pr"]:
-        st.subheader("Upload it to GitHub")
+        st.subheader("⬆️ Upload it to GitHub")
 
-        st.write("Now that your submission list looks good, provide:")
+        st.write("Now that your `📃 Submission list` looks good, provide:")
         st.write(" - Your GitHub repository URL")
         st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one)")
-        st.write("Then, click on `Create pull request` and wait for the instructions on the output.")
+        st.write("Then, click on `🚀 Create pull request` and wait for the instructions on the output.")
 
         repo_url = st.text_input(
             "GitHub repository URL",
@@ -902,6 +902,8 @@ def render_initialize_view():
         create_pr = st.button(
             "Create pull request",
             disabled=not repo_url.strip(),
+            use_container_width=True,
+            icon="🚀",
         )
 
         if create_pr:
@@ -921,10 +923,14 @@ def render_update_view():
         on_click=set_active_view,
         args=(VIEW_WELCOME,),
     )
-    st.title("Upload/Update a notebook on an existing project")
-    st.write("After initialising the repository, upload a notebook and a requirements.yaml file.")
-    st.write("Remember to follow the [upload guidelines from LabConstrictor](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_upload.md).")
-    st.write("Upload notebook/requirements pairs one at a time, validate them, and keep stacking them in the submission list before opening a pull request.")
+    st.title("Upload/Update notebooks on an existing project")
+    st.write("Once you have initialised the repository, you are ready to start uploading notebooks.")
+    st.write("Here are the quick steps for uploading, but remember you have a more documented [upload guidelines from LabConstrictor](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/notebook_upload.md).")
+    st.write("1. Upload a notebook and a requirements yaml file by drag and dropping or by browsing it on your computer.")
+    st.write("2. Click on `➕ Validate & Add submission`. This will validate the notebook and requirement, and in case it passes, it will be added to the `📃 Submission list`.")
+    st.write("3. If you want to upload/update more notebooks, repeat steps 1 and 2. You can add or remove as many notebooks as you want to the `📃 Submission list`.")
+    st.write("4. Once your `📃 Submission list` is ready, go to the `⬆️ Upload it to GitHub` section,provide your GitHub repository URL and Personal Access Token, and click on `🚀 Create pull request`.")
+    st.write("5. Wait for the instructions on the output and check your pull request in GitHub to see the next steps to merge it and have your notebooks live in your project!")
 
     queued_uploads = st.session_state["update_upload_queue"]
     form_key = st.session_state["update_upload_form_key"]
@@ -949,7 +955,7 @@ def render_update_view():
         on_change=mark_submission_dirty,
     )
 
-    submitted = st.button("Validate & add to submission list", use_container_width=True)
+    submitted = st.button("Validate & Add Submission", use_container_width=True, type="secondary", icon="➕")
 
     if submitted:
         if not uploaded_notebook:
@@ -1004,7 +1010,8 @@ def render_update_view():
                 st.rerun()
 
     if queued_uploads:
-        st.subheader("Submission list")
+        st.divider()
+        st.subheader("📃 Submission list")
         removal_index = None
         for idx, queued in enumerate(queued_uploads):
             col1, col2, col3, col4 = st.columns([3, 3, 3, 1])
@@ -1015,21 +1022,22 @@ def render_update_view():
             with col3:
                 st.markdown(f"**Submitted at:** {queued['submitted_time']}")
             with col4:
-                if st.button("Remove", key=f"remove_upload_{idx}"):
+                if st.button("Remove", key=f"remove_upload_{idx}", icon="🗑️", type="primary"):
                     removal_index = idx
         if removal_index is not None:
             removed = queued_uploads.pop(removal_index)
             st.session_state["update_upload_queue"] = queued_uploads
             st.rerun()
             st.info(f"Removed '{removed['notebook_name']}' from the submission list.")
+        st.divider()
             
     if queued_uploads:
-        st.subheader("Upload it to GitHub")
+        st.subheader("⬆️ Upload it to GitHub")
 
         st.write("Now that your submission list looks good, provide:")
-        st.write(" - Your GitHub repository URL")
-        st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one)")
-        st.write("Then, click on `Create pull request` and wait for the instructions on the output.")
+        st.write(" - Your GitHub repository URL.")
+        st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one).")
+        st.write("Then, click on `🚀 Create pull request` and wait for the instructions on the output.")
 
         repo_url = st.text_input(
             "GitHub repository URL",
@@ -1046,6 +1054,8 @@ def render_update_view():
         create_pr = st.button(
             "Create pull request",
             disabled=not repo_url.strip(),
+            use_container_width=True,
+            icon="🚀",
         )
 
         if create_pr:
