@@ -6,12 +6,15 @@ from io import BytesIO
 from PIL import Image
 import streamlit as st
 import subprocess
+import sysconfig
 import requests
 import struct
 import base64
 import shutil
+import pydoc
 import yaml
 import stat
+import sys
 import re
 import os
 
@@ -38,6 +41,37 @@ VIEW_UPDATE = "update"
 if "active_view" not in st.session_state:
     st.session_state["active_view"] = VIEW_WELCOME
 
+def stdlib_modules_via_pydoc():
+    paths = sysconfig.get_paths()
+    stdlib = paths.get("stdlib")
+    platstdlib = paths.get("platstdlib")
+
+    # Keep only stdlib-ish paths (and drop site-packages + current dir)
+    keep_prefixes = tuple(p for p in (stdlib, platstdlib) if p)
+    old_path = sys.path[:]
+    try:
+        sys.path[:] = [
+            p for p in sys.path
+            if isinstance(p, str)
+            and p not in ("", os.getcwd())
+            and "site-packages" not in p
+            and p.startswith(keep_prefixes)
+        ]
+
+        mods = set(sys.builtin_module_names)
+
+        def callback(path, modname, desc):
+            if modname.endswith(".__init__"):
+                modname = modname[:-9]  # drop .__init__
+            if "." not in modname:
+                mods.add(modname)
+
+        pydoc.ModuleScanner().run(callback)
+        return sorted(mods)
+    finally:
+        sys.path[:] = old_path
+
+st.session_state["stdlib_modules"] = stdlib_modules_via_pydoc()
 
 def set_active_view(view_name: str):
     st.session_state["active_view"] = view_name
@@ -84,6 +118,8 @@ def validate_submission(submitted_info):
             errors.append("Project name must be at most 50 characters long.")
         elif not re.match(r"^[A-Za-z0-9 _.-]+$", project_name):
             errors.append("Project name contains invalid characters. Only letters, numbers, spaces, underscores, hyphens, and periods are allowed.")
+        elif project_name.lower() in (name.lower() for name in st.session_state["stdlib_modules"]):
+            errors.append(f"Project name '{project_name}' cannot be the same as an existing Python standard library module. This would break some of the LabConstrictor functionalities. Please choose a different name.")
 
     project_version = submitted_info.get("project_version", "").strip()
     if not project_version:
@@ -839,67 +875,6 @@ def render_initialize_view():
             st.success(
                 f"Project '{project_name.strip()}' was submitted successfully!"
             )
-
-    if queued_uploads:
-        st.subheader("Submission list")
-        removal_index = None
-        for idx, queued in enumerate(queued_uploads):
-            col1, col2, col3 = st.columns([3, 3, 1])
-            with col1:
-                st.markdown(f"**Notebook:** {queued['notebook_name']}")
-            with col2:
-                st.markdown(f"**Requirements:** {queued['requirements_name']}")
-            with col3:
-                if st.button("Remove", key=f"remove_upload_{idx}"):
-                    removal_index = idx
-        if removal_index is not None:
-            removed = queued_uploads.pop(removal_index)
-            st.session_state["update_upload_queue"] = queued_uploads
-            st.info(f"Removed '{removed['notebook_name']}' from the submission list.")
-    else:
-        st.info("Add at least one notebook + requirements pair to build the submission list.")
-
-    if queued_uploads:
-        st.subheader("Upload it to GitHub")
-
-        st.write("Now that your submission has been validated, provide:")
-        st.write(" - Your GitHub repository URL")
-        st.write(" - Your Personal Access Token (check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one)")
-        st.write("Then, click on `Create pull request` tand wait for the instructions on the output.")
-
-        repo_url = st.text_input(
-            "GitHub repository URL",
-            key="github_repo_url",
-            placeholder="https://github.com/org/repo",
-            help="Paste the repository where the pull request should be opened.",
-        )
-        token = st.text_input("Personal Access Token", 
-                              key="pat",
-                              type="password",
-                              help="Provide a GitHub Personal Access Token with repo permissions.",
-                              )
-        create_pr = st.button(
-            "Create pull request",
-            disabled=not repo_url.strip(),
-        )
-        
-        if create_pr:
-            if validate_repo_format(repo_url.strip()):
-                with st.status("Creating pull request...", expanded=True) as status:
-                    submission_payload = {
-                        "submission_mode": "update",
-                        "queued_uploads": list(queued_uploads),
-                    }
-                    response = enqueue_pull_request(repo_url.strip(), token.strip(), submission_payload)
-                if response:
-                    st.session_state["update_upload_queue"] = []
-                    st.success("Cleared the submission list after a successful pull request.")
-                # try:
-                #     enqueue_pull_request(repo_url.strip(), token.strip(), submission_payload)
-                # except Exception as e:
-                #     status.error(f"Failed to create PR:\n{e}")
-            else:
-                st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
 
 def render_update_view():
     st.button(
