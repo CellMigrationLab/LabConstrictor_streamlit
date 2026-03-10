@@ -400,6 +400,7 @@ def initialize_project(repo_path, project_name, version, hide_code,
         "PYTHON_PROJ_NAME": {
             "setup.py": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
             ".tools/docs/external_code_upload.md": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
+            ".tools/templates/Welcome_template.ipynb": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
         },
         "UNDERSCORED_PROJECT_NAME": {
             "construct.yaml": project_name.replace(" ", "_"),
