@@ -908,6 +908,19 @@ def render_initialize_view():
         )
 
         if create_pr:
+            # First validate the PAT 
+            if not token.strip():
+                st.error("Please provide a Personal Access Token.")
+                return
+            elif not token.strip().startswith("ghp_"):
+                if token.strip().startswith("github_pat_"):
+                    st.error("It seems you provided a **Fine-grained GitHub token**. This type of token is currently not supported. Please create and provide a **Personal Access Token (classic)** with the `ghp_` prefix. Check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one.")
+                    return
+                else:
+                    st.error("The provided token does not seem to be a valid **Personal Access Token (classic)**. Please ensure it starts with `ghp_` and has the necessary permissions. Check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one.")
+                    return
+                
+            # Then validate the repo URL format
             if validate_repo_format(repo_url.strip()):
                 with st.status("Creating pull request...", expanded=True) as status:
                     try:
@@ -1060,6 +1073,19 @@ def render_update_view():
         )
 
         if create_pr:
+            # First validate the PAT 
+            if not token.strip():
+                st.error("Please provide a Personal Access Token.")
+                return
+            elif not token.strip().startswith("ghp_"):
+                if token.strip().startswith("github_pat_"):
+                    st.error("It seems you provided a **Fine-grained GitHub token**. This type of token is currently not supported. Please create and provide a **Personal Access Token (classic)** with the `ghp_` prefix. Check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one.")
+                    return
+                else:
+                    st.error("The provided token does not seem to be a valid **Personal Access Token (classic)**. Please ensure it starts with `ghp_` and has the necessary permissions. Check this [guide](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/personal_access_token.md) on how to create one.")
+                    return
+
+            # Then validate the repo URL format
             if validate_repo_format(repo_url.strip()):
                 with st.status("Creating pull request...", expanded=True) as status:
                     submission_payload = {
