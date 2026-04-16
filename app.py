@@ -636,14 +636,18 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
                 # Create a new README.md with the project name
                 with open(readme_path, "w", encoding="utf-8") as f:
                     f.write(f"# {input_dict['project_name']}\n\n")
+                    f.write("Welcome to CellPatcher!\n")
                     f.write("This repository was initialised using LabConstrictor.\n")
-                    f.write("Please, feel free to customise this README file.\n")
+                    f.write(f"If you want to start using {input_dict['project_name']}, please go to the [How to Download and Install {input_dict['project_name']}?](#how-to-download-and-install-{input_dict['project_name'].lower()}) below.\n")
+                    f.write(f"> If you are the developer of {input_dict['project_name']}, please customise this README file.\n")
                     f.write("\n")
-                    f.write("## Internal Documentation\n\n")
+                    f.write(f"## How to Download and Install {input_dict['project_name']}?\n\n")
+                    f.write(f"The installer would only be available once {input_dict['project_name']} developer has created a release.\n")
+                    f.write(f"Please, go to [this page](.tools/docs/download_executable.md) and check if the installing instructions are there.\n")
+                    f.write(f"In case there is no documentation there, please [create an issue](https://github.com/{input_dict['github_owner']}/{input_dict['github_repo_name']}/issues) asking the developer to create a release.\n")
+                    f.write(f"## Documentation for {input_dict['project_name']}'s Developers\n\n")
                     f.write("Internal documentation on how to upload notebooks or create executables is available in the [.tools/docs](.tools/docs/README.md) folder.\n")
                     f.write("\n")
-                    f.write("## Download\n\n")
-                    f.write("Upon release the downloadable assets will be available [here](.tools/docs/download_executable.md).\n")
             
         # Create a pull request using GitHub CLI
         pr_title = f"Pull request for {input_dict['project_name']} initialisation"
