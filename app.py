@@ -644,7 +644,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
                     f.write(f"## How to Download and Install {input_dict['project_name']}?\n\n")
                     f.write(f"The installer would only be available once {input_dict['project_name']} developer has created a release.\n")
                     f.write(f"Please, go to [this page](.tools/docs/download_executable.md) and check if the installing instructions are there.\n")
-                    f.write(f"In case there is no documentation there, please [create an issue](https://github.com/{input_dict['github_owner']}/{input_dict['github_repo_name']}/issues) asking the developer to create a release.\n")
+                    f.write(f"In case there is no documentation there, please [create an issue](https://github.com/{github_owner}/{github_repo_name}/issues) asking the developer to create a release.\n")
                     f.write(f"## Documentation for {input_dict['project_name']}'s Developers\n\n")
                     f.write("Internal documentation on how to upload notebooks or create executables is available in the [.tools/docs](.tools/docs/README.md) folder.\n")
                     f.write("\n")
@@ -930,7 +930,7 @@ def render_initialize_view():
                     try:
                         enqueue_pull_request(repo_url.strip(), token.strip(), st.session_state["submitted_info"])
                     except Exception as e:
-                        status.error(f"Failed to create PR:\n{e}")
+                        status.error(f"Failed to create pull request:\n{e}")
             else:
                 st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
 
