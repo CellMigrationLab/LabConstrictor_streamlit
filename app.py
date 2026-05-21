@@ -85,6 +85,9 @@ def validate_repo_format(repo_url):
         return True
     return False
 
+def to_python_project_name(project_name: str) -> str:
+    return project_name.lower().replace(" ", "_").replace("-", "_").replace(".", "_")
+
 def validate_requirements(uploaded_requirements):
     # First read the requirements.yaml content
     try:
@@ -392,15 +395,16 @@ def initialize_project(repo_path, project_name, version, hide_code,
 
     # Define the conversion dictionary
     proyectname_lower = project_name.lower()
+    python_project_name = to_python_project_name(project_name)
     conversion_dict = {
         "LOWER_PROJ_NAME": {
             "environment.yaml": proyectname_lower,
             ".tools/templates/download_executable_template.md": proyectname_lower,
         },
         "PYTHON_PROJ_NAME": {
-            "setup.py": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
-            ".tools/docs/external_code_upload.md": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
-            ".tools/templates/Welcome_template.ipynb": proyectname_lower.replace(" ", "_").replace("-", "_").replace(".", "_"),
+            "setup.py": python_project_name,
+            ".tools/docs/external_code_upload.md": python_project_name,
+            ".tools/templates/Welcome_template.ipynb": python_project_name,
         },
         "UNDERSCORED_PROJECT_NAME": {
             "construct.yaml": project_name.replace(" ", "_"),
@@ -451,6 +455,11 @@ def initialize_project(repo_path, project_name, version, hide_code,
         for file_path, replacement in files.items():
             replace_in_file(repo_path / file_path, placeholder, replacement)
 
+    package_dir = repo_path / "src" / python_project_name
+    package_dir.mkdir(parents=True, exist_ok=True)
+    init_file = package_dir / "__init__.py"
+    if not init_file.exists():
+        init_file.write_text("", encoding="utf-8")
 
     # Update the notebook launcher JSON file to set the icons if needed
     notebook_launcher_path = repo_path / "app" / "menuinst" / "notebook_launcher.json"
