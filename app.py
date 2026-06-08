@@ -451,7 +451,6 @@ def initialize_project(repo_path, project_name, version, hide_code,
         "VERSION_NUMBER": {
             "construct.yaml": version,
             "app/bash_bat_scripts/post_install.bat": version,
-            ".tools/templates/download_executable_template.md": version,
             "setup.py": version,
         },
         "WELCOME_IMAGE": {
