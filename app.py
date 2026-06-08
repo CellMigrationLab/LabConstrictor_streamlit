@@ -308,6 +308,31 @@ def replace_in_file(file_path, old, new):
         file.write(content)
 
 
+def synchronize_welcome_template(repo_path):
+    welcome_template_path = repo_path / ".tools" / "templates" / "Welcome_template.ipynb"
+    if not welcome_template_path.exists():
+        return False
+
+    old_notebook_url = (
+        'notebook_url = f"https://api.github.com/repos/{github_owner}/'
+        '{github_repo_name}/contents/notebooks/{main_folder}/{subfolder}/'
+        '{subfolder}.ipynb?ref={github_branch}"'
+    )
+    new_notebook_url = (
+        'notebook_url = f"https://api.github.com/repos/{github_owner}/'
+        '{github_repo_name}/contents/notebooks/{main_folder}/{subfolder}.ipynb'
+        '?ref={github_branch}"'
+    )
+
+    welcome_template = welcome_template_path.read_text(encoding="utf-8")
+    updated_template = welcome_template.replace(old_notebook_url, new_notebook_url)
+    if updated_template == welcome_template:
+        return False
+
+    welcome_template_path.write_text(updated_template, encoding="utf-8")
+    return True
+
+
 def capture_yaml_key_lines(yaml_text: str, key: str):
     """Return all lines whose trimmed content starts with '<key>:'."""
     prefix = f"{key}:"
@@ -664,6 +689,12 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
         commit_message = f"Initisalise repository as {input_dict['project_name']} v{input_dict['project_version']}"
 
     elif input_dict["submission_mode"] == "update":
+        welcome_template_synchronized = synchronize_welcome_template(
+            st.session_state["repo_path"]
+        )
+        if welcome_template_synchronized:
+            st.write("Synchronized `.tools/templates/Welcome_template.ipynb`.")
+
         uploads = input_dict.get("queued_uploads")
         if not uploads:
             uploads = [
@@ -724,6 +755,10 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
                 f"{notebook_list}"
             )
             commit_message = f"Upload/Update {len(notebook_names)} notebooks"
+
+        if welcome_template_synchronized:
+            pr_body += "\n\nIt also synchronizes `.tools/templates/Welcome_template.ipynb` with the current notebook path layout."
+            commit_message += " and synchronize Welcome template"
 
     response = push_and_create_pr(
         folder=st.session_state["repo_path"],
