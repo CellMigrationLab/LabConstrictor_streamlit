@@ -669,7 +669,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
                 # Create a new README.md with the project name
                 with open(readme_path, "w", encoding="utf-8") as f:
                     f.write(f"# {input_dict['project_name']}\n\n")
-                    f.write("Welcome to CellPatcher!\n")
+                    f.write(f"Welcome to {input_dict['project_name']}!\n")
                     f.write("This repository was initialised using LabConstrictor.\n")
                     f.write(f"If you want to start using {input_dict['project_name']}, please go to the [How to Download and Install {input_dict['project_name']}?](#how-to-download-and-install-{input_dict['project_name'].lower()}) below.\n")
                     f.write(f"> If you are the developer of {input_dict['project_name']}, please customise this README file.\n")
