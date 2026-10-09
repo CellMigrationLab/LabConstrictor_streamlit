@@ -18,6 +18,8 @@ import sys
 import re
 import os
 
+import manifest_form
+
 st.set_page_config(page_title="LabConstrictor", 
                    page_icon="🐍",
                    layout="wide",
@@ -143,6 +145,8 @@ def validate_submission(submitted_info):
     if uploaded_headers := submitted_info.get("headers_uploaded"):
         if uploaded_headers.size > MAX_FILE_SIZE_MB * 1024 * 1024:
             errors.append(f"Headers file '{uploaded_headers.name}' exceeds {MAX_FILE_SIZE_MB} MB limit.")
+
+    errors.extend(manifest_form.submission_errors(submitted_info, submitted_info.get("icon_uploaded")))
 
     if not errors:
         st.session_state["ready_for_pr"] = True
@@ -651,6 +655,8 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             github_repo_name=github_repo_name,
         )
 
+        manifest_form.write_manifest(st.session_state["repo_path"], input_dict, icon_path)
+
         # Also, check if there is a README.md file and if so move it to the '.tools/docs' folder and create a new one with the project name
         readme_path = st.session_state["repo_path"] / "README.md"
 
@@ -684,7 +690,7 @@ def enqueue_pull_request(repo_url, personal_access_token, input_dict):
             
         # Create a pull request using GitHub CLI
         pr_title = f"Pull request for {input_dict['project_name']} initialisation"
-        pr_body = f"This pull request customises raw LabConstrictor template to include the project name {input_dict['project_name']} v{input_dict['project_version']}."
+        pr_body = f"This pull request customises raw LabConstrictor template to include the project name {input_dict['project_name']} v{input_dict['project_version']}." + manifest_form.pr_note(input_dict)
         commit_message = f"Initisalise repository as {input_dict['project_name']} v{input_dict['project_version']}"
 
     elif input_dict["submission_mode"] == "update":
@@ -862,6 +868,7 @@ def render_initialize_view():
     st.write("- Project name: We recommend using the same name as your GitHub repository.")
     st.write("- Initial project version: We recommend starting at version 0.0.1.")
     st.write(f"- Optionally disable automatic code hiding in notebooks. By default, LabConstrictor hides code cells in the notebooks. If you are wondering what this means, please check [this documentation](https://github.com/CellMigrationLab/LabConstrictor/blob/main/.tools/docs/code_hiding.md).")
+    st.write("- Recommended: describe your app (one sentence, its kind and where it works) so it can be listed in the LabConstrictor App Centre.")
     st.write("- Optionally upload images to customize your executable interface.")
     st.write("Then, click on `Validate submission`.")
 
@@ -879,6 +886,8 @@ def render_initialize_view():
                                 value=False,
                                 help="If checked, the code hiding feature will be disabled in the generated executable.",
                                 on_change=mark_submission_dirty)
+
+        manifest_fields = manifest_form.render_fields(mark_submission_dirty)
 
         st.subheader("(Optional) Upload project images")
         uploaded_icon = st.file_uploader(
@@ -913,7 +922,8 @@ def render_initialize_view():
             "hide_code": hide_code,
             "icon_uploaded": uploaded_icon,
             "welcome_uploaded": uploaded_welcome,
-            "headers_uploaded": uploaded_headers,    
+            "headers_uploaded": uploaded_headers,
+            **manifest_fields,
         }
 
         validation_errors = validate_submission(st.session_state["submitted_info"])
