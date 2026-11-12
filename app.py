@@ -19,6 +19,8 @@ import re
 import os
 
 import manifest_form
+import placeholders
+from placeholders import replace_in_file, to_python_project_name
 
 st.set_page_config(page_title="LabConstrictor", 
                    page_icon="🐍",
@@ -86,9 +88,6 @@ def validate_repo_format(repo_url):
     if re.match(pattern, repo_url):
         return True
     return False
-
-def to_python_project_name(project_name: str) -> str:
-    return project_name.lower().replace(" ", "_").replace("-", "_").replace(".", "_")
 
 def validate_requirements(uploaded_requirements):
     # First read the requirements.yaml content
@@ -304,12 +303,6 @@ def handle_remove_error(func, path, exc_info):
     else:
         raise exc_info[1]
         
-def replace_in_file(file_path, old, new):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        content = file.read()
-    content = content.replace(old, str(new).strip())
-    with open(file_path, 'w', encoding='utf-8') as file:
-        file.write(content)
 
 
 def synchronize_welcome_template(repo_path):
@@ -422,66 +415,22 @@ def initialize_project(repo_path, project_name, version, hide_code,
     for template_path, final_path in template_to_location.items():
         shutil.copyfile(repo_path / template_path, repo_path / final_path)
 
-    # Define the conversion dictionary
-    proyectname_lower = project_name.lower()
+    # Which file gets which value: placeholders.conversion_table (tested against the template)
     python_project_name = to_python_project_name(project_name)
-    conversion_dict = {
-        "LOWER_PROJ_NAME": {
-            "environment.yaml": proyectname_lower,
-            ".tools/templates/download_executable_template.md": proyectname_lower,
-        },
-        "PYTHON_PROJ_NAME": {
-            "setup.py": python_project_name,
-            ".tools/docs/external_code_upload.md": python_project_name,
-            ".tools/templates/Welcome_template.ipynb": python_project_name,
-        },
-        "UNDERSCORED_PROJECT_NAME": {
-            "construct.yaml": project_name.replace(" ", "_"),
-            "app/bash_bat_scripts/pre_uninstall.bat": project_name.replace(" ", "_"),
-            "app/bash_bat_scripts/post_install.bat": project_name.replace(" ", "_"),
-        },
-        "PROJECT_NAME": {
-            "construct.yaml": project_name,
-            "app/menuinst/notebook_launcher.json": project_name,
-            "app/bash_bat_scripts/post_install.bat": project_name,
-            "app/bash_bat_scripts/post_install.sh": project_name,
-            "app/bash_bat_scripts/pre_uninstall.bat": project_name,
-            "app/bash_bat_scripts/pre_uninstall.sh": project_name,
-            "app/bash_bat_scripts/uninstall.sh": project_name,
-            ".tools/templates/Welcome_template.ipynb": project_name,
-            ".tools/templates/download_executable_template.md": project_name,
-            ".tools/python/bump_constructor.py": project_name,
-        },
-        "VERSION_NUMBER": {
-            "construct.yaml": version,
-            "app/bash_bat_scripts/post_install.bat": version,
-            "setup.py": version,
-        },
-        "WELCOME_IMAGE": {
-            "construct.yaml": welcome_image_path,
-        },
-        "HEADER_IMAGE": {
-            "construct.yaml": header_image_path,
-        },
-        "ICON_IMAGE": {
-            "construct.yaml": icon_image_path,
-        },
-        "GITHUB_OWNER": {
-            "app/bash_bat_scripts/post_install.bat": github_owner,
-            ".tools/templates/download_executable_template.md": github_owner,
-        },
-        "GITHUB_REPO_NAME": {
-            ".tools/templates/download_executable_template.md": github_repo_name,
-        },
-        "HIDE_CODE_DISABLED": {
-            "app/python_scripts/hide_code_cells.py": hide_code,
-        }
-    }
+    conversion_dict = placeholders.conversion_table(project_name, version, hide_code, welcome_image_path, header_image_path,
+                                                    icon_image_path, github_owner, github_repo_name)
 
     # Replace placeholders in files
     for placeholder, files in conversion_dict.items():
         for file_path, replacement in files.items():
             replace_in_file(repo_path / file_path, placeholder, replacement)
+
+    # A placeholder left in a file the installer ships breaks the installed app (template 0.1.16+ ran
+    # `import PYTHON_PROJ_NAME`): refuse to open the pull request instead.
+    leftovers = placeholders.leftover_placeholders(repo_path)
+    if leftovers:
+        raise RuntimeError("The template has placeholders this initialiser does not fill in: " + "; ".join(leftovers)
+                           + ". Please report it at https://github.com/CellMigrationLab/LabConstrictor/issues")
 
     package_dir = repo_path / "src" / python_project_name
     package_dir.mkdir(parents=True, exist_ok=True)
