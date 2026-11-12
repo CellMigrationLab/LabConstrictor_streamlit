@@ -1,0 +1,28 @@
+name: Tests
+
+# Weekly as well: tests/test_initializer.py initialises the template's current main, so a placeholder added to the
+# template that this form does not replace yet (LabConstrictor#40) fails here even when nothing changed in this repository.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4
+        with:
+          python-version: "3.11"
+      - name: Install the form's requirements
+        run: pip install -r requirements.txt
+      - name: Tests (the initializer test downloads the template's main)
+        run: python -m unittest discover -s tests -v
