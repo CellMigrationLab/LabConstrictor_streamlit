@@ -1,0 +1,39 @@
+name: Tests
+
+# Weekly as well: tests/test_placeholders.py initialises a clone of the template's current main, so a placeholder added to
+# the template that this form does not replace yet (LabConstrictor#40) fails here even when nothing changed in this repository.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check out the template's main (the form copies it into every new repository)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: CellMigrationLab/LabConstrictor
+          ref: main
+          path: labconstrictor-template
+          persist-credentials: false
+      - uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4
+        with:
+          python-version: "3.11"
+      - name: Install the form's requirements
+        run: pip install -r requirements.txt
+      - name: Tests (the template tests run on the clone; without LC_TEMPLATE_DIR they are skipped)
+        env:
+          LC_TEMPLATE_DIR: ${{ github.workspace }}/labconstrictor-template
+        run: python -m unittest discover -s tests -v
