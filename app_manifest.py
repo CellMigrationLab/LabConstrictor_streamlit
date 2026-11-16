@@ -18,7 +18,7 @@ from jsonschema import Draft202012Validator
 
 MANIFEST_NAME = "labconstrictor-app.yaml"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "labconstrictor-app.schema.json"
-SCHEMA_URL = "https://labconstrictor.cellmig.org/schema/labconstrictor-app.schema.json"
+SCHEMA_URL = "https://cellmigrationlab.github.io/LabConstrictor-Site/schema/labconstrictor-app.schema.json"
 KINDS = {"Analysis": "analysis", "Segmentation": "segmentation", "Simulation": "simulation",
          "Game": "game", "Training": "training", "Utility": "utility"}
 HOSTS = ("notebook", "napari", "fiji", "qupath")
