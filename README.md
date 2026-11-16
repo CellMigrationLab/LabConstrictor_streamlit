@@ -9,7 +9,7 @@ A web form that sets up a [LabConstrictor](https://cellmigrationlab.github.io/La
    
    <img width="40%" height="40%" alt="image" src="https://github.com/user-attachments/assets/9960fcbb-cf8b-4202-b26b-14de749e64b7" />
 
-3. When you arrive to this page, chose between `Initialise a repository` or `Upload or update notebooks`, please take a look into [What it does](#what-it-does) for further information
+3. When you arrive to the following page, chose between `Initialise a repository` or `Upload or update notebooks`, please take a look into [What it does](#what-it-does) for further information
    
    <img width="1781" height="349" alt="image" src="https://github.com/user-attachments/assets/790a20cc-1e1c-4c76-97d1-4fe48496fc56" />
 
