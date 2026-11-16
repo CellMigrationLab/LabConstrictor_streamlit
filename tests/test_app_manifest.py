@@ -19,7 +19,7 @@ class ManifestTests(unittest.TestCase):
 
     def test_a_valid_manifest_round_trips(self) -> None:
         text = am.render(self.build(description="First paragraph.\n\nSecond paragraph.", icon_path="app/logo/icon.png"))
-        self.assertTrue(text.startswith("# yaml-language-server: $schema=https://labconstrictor.cellmig.org/"))
+        self.assertTrue(text.startswith("# yaml-language-server: $schema=https://cellmigrationlab.github.io/LabConstrictor-Site/"))
         data = yaml.safe_load(text)
         self.assertEqual(data["kind"], "analysis")
         self.assertEqual(data["distribution"], {"installer": True})

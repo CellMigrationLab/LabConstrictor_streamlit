@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://labconstrictor.cellmig.org/schema/labconstrictor-project.schema.json
+# yaml-language-server: $schema=https://cellmigrationlab.github.io/LabConstrictor-Site/schema/labconstrictor-project.schema.json
 # How this project is listed on the LabConstrictor website's Ecosystem page. Keep the status true.
 name: Repository initialiser
 summary: A web form that sets up a new app repository and opens a pull request. It sleeps when idle, so the first load can be slow.
