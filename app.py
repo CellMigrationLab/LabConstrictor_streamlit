@@ -748,29 +748,38 @@ def mark_submission_dirty():
     st.session_state["ready_for_pr"] = False
 
 def render_sidebar_content(current_view: str):
+    guides = "https://cellmigrationlab.github.io/LabConstrictor-Site/guides/"
     with st.sidebar:
         if current_view == VIEW_INITIALIZE:
-            st.header("Submission tips")
+            st.header("Initialisation tips")
             st.markdown(
-                """
-- Zip large folders before uploading.
-- Pick the interpreter version that matches your `pyproject.toml` or `runtime.txt`.
-- Keep uploads below 25 MB each to avoid browser time-outs.
+                f"""
+- Use the name of your GitHub repository as the project name.
+- Start at version 0.0.1; each release sets the version after that.
+- Images are optional: logo 256 x 256 px, banner 164 x 314 px, header 150 x 57 px, all PNG.
+- You need a [personal access token]({guides}personal-access-token/) that can write to the repository.
+- The form opens a pull request in your repository; accept it to finish ([how]({guides}accept-pull-request/)).
                 """
             )
         elif current_view == VIEW_UPDATE:
-            st.header("Update tips")
-            st.info(
-                "Update workflow details will live here soon. Use the back button "
-                "if you want to switch actions."
+            st.header("Notebook upload tips")
+            st.markdown(
+                f"""
+- Each notebook needs its `requirements.yaml`: [generate it]({guides}notebook-requirements/).
+- Add several notebooks to the submission list, then upload them in one pull request.
+- Uploading a notebook with the same name replaces it.
+- After you accept the pull request, GitHub prepares the app's environment; then [create the installers]({guides}executable-creation/).
+                """
             )
         else:
             st.header("Get started")
             st.write("Pick what you would like to do on the main panel to continue.")
             st.markdown(
-                """
-- Initialising a brand new LabConstrictor repository.
-- Or prepare to update an existing deployment (coming soon).
+                f"""
+- **Initialise** a repository you created from the LabConstrictor template.
+- **Upload or update notebooks** in a repository that is already initialised.
+
+Step by step: [the LabConstrictor guides]({guides}).
                 """
             )
 
@@ -1107,6 +1116,7 @@ def render_update_view():
                 st.error("Please ensure that your repository URL is in the correct format (e.g., https://github.com/org/repo).")
 
 current_view = st.session_state["active_view"]
+render_sidebar_content(current_view)
 
 if current_view == VIEW_INITIALIZE:
     render_initialize_view()
