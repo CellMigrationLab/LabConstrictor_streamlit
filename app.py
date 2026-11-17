@@ -20,6 +20,7 @@ import os
 
 import manifest_form
 import placeholders
+import requirements_format
 from placeholders import replace_in_file, to_python_project_name
 
 st.set_page_config(page_title="LabConstrictor", 
@@ -103,9 +104,9 @@ def validate_requirements(uploaded_requirements):
             if not isinstance(dep, str):
                 return False, f"Dependency '{dep}' is not a string."
             else:
-                # Only allow fixed version dependencies in the format 'package==version'
-                if not re.match(r"^[a-zA-Z0-9_.-]+==[a-zA-Z0-9_.-]+$", dep):
-                    return False, f"Dependency '{dep}' is not in the correct format. Only fixed versions with 'package==version' are allowed."
+                # Only fixed versions: 'package==version', optionally with extras ('package[extra1,extra2]==version')
+                if not requirements_format.is_pinned_requirement(dep):
+                    return False, requirements_format.format_error(dep)
         return True, "Requirements file is valid."
     except Exception as e:
         return False, f"Error reading requirements file: {e}"
